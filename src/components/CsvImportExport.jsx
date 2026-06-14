@@ -12,7 +12,7 @@ const STANDARD_FIELDS = {
   meeting_date: { label: 'Meeting Date', defaultKeys: ['meeting', 'meetingdate', 'date'] },
   general_notes: { label: 'General Notes', defaultKeys: ['notes', 'generalnotes', 'comment', 'comments', 'desc', 'description'] },
   instagram_handle: { label: 'Instagram Handle', defaultKeys: ['instagram', 'ig', 'ighandle', 'instagramhandle', 'handle', 'username'] },
-  instagram_notes: { label: 'Instagram Notes', defaultKeys: ['instagramnotes', 'ignotes', 'igcomments', 'dms'] }
+  approached: { label: 'Approached', defaultKeys: ['approached', 'whenapproached', 'approacheddate', 'approached_date'] }
 };
 
 // Helper function to parse CSV text into array of arrays
@@ -166,7 +166,7 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
         meeting_date: getCleanDate(getMappedValue(row, mappings.meeting_date)),
         general_notes: getMappedValue(row, mappings.general_notes) || '',
         instagram_handle: getCleanInstagramHandle(getMappedValue(row, mappings.instagram_handle)),
-        instagram_notes: getMappedValue(row, mappings.instagram_notes) || '',
+        approached: getMappedValue(row, mappings.approached) || '',
         custom_fields: {}
       };
 
@@ -238,7 +238,7 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
     const csvHeaders = [
       'Full Name', 'Business Name', 'Phone', 'Email', 
       'Status', 'Priority', 'Lead Source', 'Meeting Date', 
-      'General Notes', 'Instagram Handle', 'Instagram Notes',
+      'General Notes', 'Instagram Handle', 'Approached',
       ...customColList
     ];
 
@@ -255,7 +255,7 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
         l.meeting_date || '',
         l.general_notes || '',
         l.instagram_handle || '',
-        l.instagram_notes || ''
+        l.approached || ''
       ];
 
       // Append custom fields

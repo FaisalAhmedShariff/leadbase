@@ -17,7 +17,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
     meeting_date: '',
     general_notes: '',
     instagram_handle: '',
-    instagram_notes: ''
+    approached: ''
   });
 
   const [customFields, setCustomFields] = useState({});
@@ -35,7 +35,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         meeting_date: lead.meeting_date || '',
         general_notes: lead.general_notes || '',
         instagram_handle: lead.instagram_handle || '',
-        instagram_notes: lead.instagram_notes || ''
+        approached: lead.approached || ''
       });
 
       // Populate custom fields
@@ -58,7 +58,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         meeting_date: '',
         general_notes: '',
         instagram_handle: '',
-        instagram_notes: ''
+        approached: ''
       });
 
       const initialCustom = {};
@@ -96,7 +96,6 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
 
     onSave(leadData);
   };
-
 
   return (
     <div className="modal-overlay">
@@ -233,13 +232,13 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
             </div>
 
             <div className="form-group-full">
-              <label htmlFor="instagram_notes">Instagram Notes</label>
-              <textarea
-                id="instagram_notes"
-                name="instagram_notes"
-                rows={2}
-                placeholder="DMs, reel engagement, story replies..."
-                value={formData.instagram_notes}
+              <label htmlFor="approached">Approached</label>
+              <input
+                id="approached"
+                name="approached"
+                type="text"
+                placeholder="e.g. DMed on June 12, Email sent, Not yet approached"
+                value={formData.approached}
                 onChange={handleChange}
               />
             </div>

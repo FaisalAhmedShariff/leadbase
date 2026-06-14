@@ -394,7 +394,7 @@ export default function App() {
   meeting_date date,
   general_notes text,
   instagram_handle text,
-  instagram_notes text,
+  approached text,
   custom_fields jsonb default '{}'::jsonb
 );
 

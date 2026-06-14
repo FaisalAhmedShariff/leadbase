@@ -153,8 +153,8 @@ export default function LeadTable({
             <th onClick={() => onRequestSort('instagram_handle')}>
               <div className="th-content">IG Handle {renderSortIcon('instagram_handle')}</div>
             </th>
-            <th onClick={() => onRequestSort('instagram_notes')}>
-              <div className="th-content">IG Notes {renderSortIcon('instagram_notes')}</div>
+            <th onClick={() => onRequestSort('approached')}>
+              <div className="th-content">Approached {renderSortIcon('approached')}</div>
             </th>
             <th onClick={() => onRequestSort('general_notes')}>
               <div className="th-content">General Notes {renderSortIcon('general_notes')}</div>
@@ -370,21 +370,21 @@ export default function LeadTable({
                   )}
                 </td>
 
-                {/* Instagram Notes */}
+                {/* Approached */}
                 <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'instagram_notes' ? (
+                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'approached' ? (
                     <input
                       className="cell-input"
                       type="text"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'instagram_notes')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'instagram_notes')}
+                      onBlur={() => handleCellSave(lead, 'approached')}
+                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'approached')}
                       autoFocus
                     />
                   ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'instagram_notes', lead.instagram_notes)} style={{ display: 'block', minHeight: '1.2rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {lead.instagram_notes || '—'}
+                    <span onClick={() => handleCellClick(lead.id, 'approached', lead.approached)} style={{ display: 'block', minHeight: '1.2rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {lead.approached || '—'}
                     </span>
                   )}
                 </td>
