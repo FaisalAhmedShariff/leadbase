@@ -89,12 +89,14 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
 
     const leadData = {
       ...formData,
+      meeting_date: formData.status === 'Meeting Booked' ? (formData.meeting_date || null) : null,
       instagram_handle: cleanHandle,
       custom_fields: customFields
     };
 
     onSave(leadData);
   };
+
 
   return (
     <div className="modal-overlay">
@@ -195,16 +197,24 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
               </select>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="meeting_date">Meeting Date</label>
-              <input
-                id="meeting_date"
-                name="meeting_date"
-                type="date"
-                value={formData.meeting_date}
-                onChange={handleChange}
-              />
-            </div>
+            {formData.status === 'Meeting Booked' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="meeting_date">Meeting Date *</label>
+                  <input
+                    id="meeting_date"
+                    name="meeting_date"
+                    type="date"
+                    value={formData.meeting_date}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  {/* Spacer */}
+                </div>
+              </>
+            )}
 
             <div className="form-group">
               <label htmlFor="instagram_handle">Instagram Handle</label>

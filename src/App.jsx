@@ -260,9 +260,14 @@ export default function App() {
   const handleUpdateLeadField = async (leadId, updatedFields) => {
     if (!supabase || session?.role === 'Viewer') return;
     try {
+      let fields = { ...updatedFields };
+      if (fields.status && fields.status !== 'Meeting Booked') {
+        fields.meeting_date = null;
+      }
+
       const { error } = await supabase
         .from('leads')
-        .update(updatedFields)
+        .update(fields)
         .eq('id', leadId);
 
       if (error) throw error;
@@ -270,6 +275,7 @@ export default function App() {
       console.error('Error updating lead inline:', err);
     }
   };
+
 
   const handleDeleteLead = async (leadId) => {
     if (!supabase || session?.role === 'Viewer') return;

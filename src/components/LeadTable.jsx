@@ -318,10 +318,18 @@ export default function LeadTable({
                     type="date"
                     value={lead.meeting_date || ''}
                     onChange={(e) => onUpdateLead(lead.id, { meeting_date: e.target.value || null })}
-                    disabled={readOnly}
-                    style={{ border: 'none', background: 'none', padding: 0, width: 'auto', cursor: readOnly ? 'default' : 'pointer' }}
+                    disabled={readOnly || lead.status !== 'Meeting Booked'}
+                    style={{ 
+                      border: 'none', 
+                      background: 'none', 
+                      padding: 0, 
+                      width: 'auto', 
+                      cursor: (readOnly || lead.status !== 'Meeting Booked') ? 'default' : 'pointer',
+                      color: lead.status !== 'Meeting Booked' ? '#999999' : '#111111'
+                    }}
                   />
                 </td>
+
 
                 {/* Instagram Handle Badge */}
                 <td className="cell-editable">
