@@ -21,7 +21,7 @@ const Instagram = ({ size = 12, ...props }) => (
 );
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return '—';
+  if (!dateStr) return '----';
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -242,7 +242,7 @@ export default function LeadTable({
                     />
                   ) : (
                     <span onClick={() => handleCellClick(lead.id, 'full_name', lead.full_name)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.full_name || (readOnly ? '—' : <span style={{ color: '#ccc' }}>New Lead</span>)}
+                      {lead.full_name || (readOnly ? '----' : <span style={{ color: '#ccc' }}>New Lead</span>)}
                     </span>
                   )}
                 </td>
@@ -261,7 +261,7 @@ export default function LeadTable({
                     />
                   ) : (
                     <span onClick={() => handleCellClick(lead.id, 'business_name', lead.business_name)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.business_name || '—'}
+                      {lead.business_name || '----'}
                     </span>
                   )}
                 </td>
@@ -280,7 +280,7 @@ export default function LeadTable({
                     />
                   ) : (
                     <span onClick={() => handleCellClick(lead.id, 'phone', lead.phone)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.phone || '—'}
+                      {lead.phone || '----'}
                     </span>
                   )}
                 </td>
@@ -299,7 +299,7 @@ export default function LeadTable({
                     />
                   ) : (
                     <span onClick={() => handleCellClick(lead.id, 'email', lead.email)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.email || '—'}
+                      {lead.email || '----'}
                     </span>
                   )}
                 </td>
@@ -431,7 +431,7 @@ export default function LeadTable({
                           <Instagram size={12} /> {lead.instagram_handle}
                         </span>
                       ) : (
-                        readOnly ? '—' : <span style={{ color: '#ccc', fontSize: '0.75rem' }}>+ Add IG</span>
+                        readOnly ? '----' : <span style={{ color: '#ccc', fontSize: '0.75rem' }}>+ Add IG</span>
                       )}
                     </span>
                   )}
@@ -451,7 +451,7 @@ export default function LeadTable({
                     />
                   ) : (
                     <span onClick={() => handleCellClick(lead.id, 'general_notes', lead.general_notes)} style={{ display: 'block', minHeight: '1.2rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {lead.general_notes || '—'}
+                      {lead.general_notes || '----'}
                     </span>
                   )}
                 </td>
@@ -471,7 +471,7 @@ export default function LeadTable({
                       />
                     ) : (
                       <span onClick={() => handleCellClick(lead.id, col, lead.custom_fields && lead.custom_fields[col])} style={{ display: 'block', minHeight: '1.2rem' }}>
-                        {(lead.custom_fields && lead.custom_fields[col]) || '—'}
+                        {(lead.custom_fields && lead.custom_fields[col]) || '----'}
                       </span>
                     )}
                   </td>

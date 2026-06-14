@@ -162,26 +162,49 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.full_name.trim()) return;
+
+    // Default standard empty fields to '----'
+    const cleanName = formData.full_name.trim() || '----';
+    const cleanBiz = formData.business_name.trim() || '----';
+    const cleanPhone = formData.phone.trim() || '----';
+    const cleanEmail = formData.email.trim() || '----';
+    const cleanNotes = formData.general_notes.trim() || '----';
 
     let cleanHandle = formData.instagram_handle.trim();
-    if (cleanHandle && !cleanHandle.startsWith('@')) {
-      cleanHandle = `@${cleanHandle}`;
+    if (cleanHandle) {
+      if (!cleanHandle.startsWith('@')) {
+        cleanHandle = `@${cleanHandle}`;
+      }
+    } else {
+      cleanHandle = '----';
     }
+
+    // Default empty custom fields to '----'
+    const cleanCustomFields = {};
+    customColumns.forEach(col => {
+      const val = customFields[col];
+      cleanCustomFields[col] = val && val.trim() !== '' ? val.trim() : '----';
+    });
 
     const isCallbackStatus = formData.status === 'Interested – Call Back Later' || formData.status === 'Uncertain – Call Back Later';
     const finalDays = isCallbackStatus 
-      ? parseInt(formData.follow_up_days, 10) 
+      ? (formData.follow_up_days !== '' ? parseInt(formData.follow_up_days, 10) : null)
       : (getAutoFollowUpRule(formData.status).days !== null ? getAutoFollowUpRule(formData.status).days : null);
 
     const leadData = {
       ...formData,
-      meeting_date: formData.status === 'Meeting Booked' ? (formData.meeting_date || null) : null,
+      full_name: cleanName,
+      business_name: cleanBiz,
+      phone: cleanPhone,
+      email: cleanEmail,
+      general_notes: cleanNotes,
       instagram_handle: cleanHandle,
+      meeting_date: formData.status === 'Meeting Booked' ? (formData.meeting_date || null) : null,
+      last_contacted_date: formData.last_contacted_date || null,
       follow_up_days: finalDays !== null && !isNaN(finalDays) ? finalDays : null,
       follow_up_time: isCallbackStatus && formData.follow_up_time ? formData.follow_up_time : null,
       follow_up_channel: isCallbackStatus ? 'Call' : getAutoFollowUpRule(formData.status).channel,
-      custom_fields: customFields
+      custom_fields: cleanCustomFields
     };
 
     onSave(leadData);
@@ -202,14 +225,13 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-group">
-              <label htmlFor="full_name">Full Name *</label>
+              <label htmlFor="full_name">Full Name</label>
               <input
                 id="full_name"
                 name="full_name"
                 type="text"
                 value={formData.full_name}
                 onChange={handleChange}
-                required
               />
             </div>
 
@@ -289,21 +311,20 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
             </div>
 
             <div className="form-group">
-              <label htmlFor="last_contacted_date">Last Contacted Date *</label>
+              <label htmlFor="last_contacted_date">Last Contacted Date</label>
               <input
                 id="last_contacted_date"
                 name="last_contacted_date"
                 type="date"
                 value={formData.last_contacted_date}
                 onChange={handleChange}
-                required
               />
             </div>
 
             {isCallbackStatus && (
               <>
                 <div className="form-group">
-                  <label htmlFor="follow_up_days">Call back in how many days? *</label>
+                  <label htmlFor="follow_up_days">Call back in how many days?</label>
                   <input
                     id="follow_up_days"
                     name="follow_up_days"
@@ -311,7 +332,6 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
                     min="0"
                     value={formData.follow_up_days}
                     onChange={handleChange}
-                    required
                   />
                 </div>
                 <div className="form-group">
@@ -330,14 +350,13 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
             {formData.status === 'Meeting Booked' && (
               <>
                 <div className="form-group">
-                  <label htmlFor="meeting_date">Meeting Date *</label>
+                  <label htmlFor="meeting_date">Meeting Date</label>
                   <input
                     id="meeting_date"
                     name="meeting_date"
                     type="date"
                     value={formData.meeting_date}
                     onChange={handleChange}
-                    required
                   />
                 </div>
                 <div className="form-group">

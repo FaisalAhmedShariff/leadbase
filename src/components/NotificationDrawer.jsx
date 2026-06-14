@@ -3,7 +3,7 @@ import { X, CheckCircle, Eye, AlertCircle } from 'lucide-react';
 
 // Helper to format dates as DD/MM/YYYY
 const formatDate = (dateStr) => {
-  if (!dateStr) return '—';
+  if (!dateStr) return '----';
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
