@@ -123,6 +123,17 @@ export default function App() {
 
   const supabase = useMemo(() => getSupabaseClient(), [supabaseConfig]);
 
+  const todayStr = getTodayString();
+  const dueLeadsCount = useMemo(() => {
+    return leads.filter(lead => {
+      if (lead.status === 'Closed Won') return false;
+      if (lead.follow_up_days === null || lead.follow_up_days === undefined) return false;
+      const dueDate = getDueDateString(lead.last_contacted_date, lead.follow_up_days);
+      if (!dueDate) return false;
+      return dueDate <= todayStr;
+    }).length;
+  }, [leads, todayStr]);
+
   // Handle Authentication and Session Setup
   useEffect(() => {
     if (!supabase) return;
@@ -601,17 +612,6 @@ alter publication supabase_realtime add table collaborators;`}
   if (schemaError) {
     return renderSchemaInstructions();
   }
-
-  const todayStr = getTodayString();
-  const dueLeadsCount = useMemo(() => {
-    return leads.filter(lead => {
-      if (lead.status === 'Closed Won') return false;
-      if (lead.follow_up_days === null || lead.follow_up_days === undefined) return false;
-      const dueDate = getDueDateString(lead.last_contacted_date, lead.follow_up_days);
-      if (!dueDate) return false;
-      return dueDate <= todayStr;
-    }).length;
-  }, [leads, todayStr]);
 
   return (
     <div>
