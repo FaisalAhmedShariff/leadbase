@@ -6,6 +6,8 @@ import LeadTable from './components/LeadTable';
 import LeadModal from './components/LeadModal';
 import CsvImportExport from './components/CsvImportExport';
 import MembersModal from './components/MembersModal';
+import NotificationDrawer from './components/NotificationDrawer';
+import FollowUpPromptModal from './components/FollowUpPromptModal';
 import { 
   Plus, 
   LogOut, 
@@ -14,8 +16,80 @@ import {
   FileSpreadsheet, 
   Users,
   X,
-  ShieldAlert
+  ShieldAlert,
+  Bell
 } from 'lucide-react';
+
+const PIPELINE_STATUSES = [
+  'Cold',
+  'Warm',
+  'Hot',
+  'No Answer',
+  'Interested – Call Back Later',
+  'Uncertain – Call Back Later',
+  'Thinking / Undecided',
+  'Proposal Sent',
+  'Negotiating',
+  'Meeting Booked',
+  'Meeting Done',
+  'Followed Up – No Response',
+  'Ghosted',
+  'Not Interested',
+  'Closed Won',
+  'Closed Lost'
+];
+
+const getAutoFollowUpRule = (status) => {
+  switch (status) {
+    case 'No Answer':
+      return { days: 0, channel: 'Text + Call' };
+    case 'Thinking / Undecided':
+      return { days: 2, channel: 'WhatsApp' };
+    case 'Proposal Sent':
+      return { days: 2, channel: 'WhatsApp + Call' };
+    case 'Followed Up – No Response':
+      return { days: 3, channel: 'WhatsApp' };
+    case 'Ghosted':
+      return { days: 5, channel: 'WhatsApp only' };
+    case 'Negotiating':
+      return { days: 1, channel: 'Call' };
+    case 'Meeting Booked':
+      return { days: 0, channel: 'Call' };
+    case 'Meeting Done':
+      return { days: 1, channel: 'WhatsApp' };
+    case 'Not Interested':
+      return { days: 30, channel: 'WhatsApp only' };
+    case 'Closed Lost':
+      return { days: 30, channel: 'WhatsApp only' };
+    default:
+      return { days: null, channel: 'none' };
+  }
+};
+
+const getTodayString = () => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getDueDateString = (lastContactedStr, days) => {
+  if (!lastContactedStr || days === null || days === undefined) return null;
+  const parts = lastContactedStr.split('-');
+  if (parts.length !== 3) return null;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  
+  const date = new Date(year, month, day);
+  date.setDate(date.getDate() + days);
+  
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 export default function App() {
   const [supabaseConfig] = useState(getSupabaseConfig());
@@ -44,6 +118,8 @@ export default function App() {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null); // lead to edit
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [activeCallbackPrompt, setActiveCallbackPrompt] = useState(null); // { lead, newStatus }
 
   const supabase = useMemo(() => getSupabaseClient(), [supabaseConfig]);
 
@@ -261,8 +337,17 @@ export default function App() {
     if (!supabase || session?.role === 'Viewer') return;
     try {
       let fields = { ...updatedFields };
-      if (fields.status && fields.status !== 'Meeting Booked') {
-        fields.meeting_date = null;
+      if (fields.status) {
+        if (fields.status !== 'Meeting Booked') {
+          fields.meeting_date = null;
+        }
+        if (fields.status !== 'Interested – Call Back Later' && fields.status !== 'Uncertain – Call Back Later') {
+          const rule = getAutoFollowUpRule(fields.status);
+          fields.follow_up_days = rule.days;
+          fields.follow_up_channel = rule.channel;
+          fields.follow_up_time = null;
+          fields.last_contacted_date = getTodayString();
+        }
       }
 
       const { error } = await supabase
@@ -274,6 +359,68 @@ export default function App() {
     } catch (err) {
       console.error('Error updating lead inline:', err);
     }
+  };
+
+  const handleTriggerCallbackPrompt = (lead, newStatus) => {
+    setActiveCallbackPrompt({ lead, newStatus });
+  };
+
+  const handleSaveCallbackInline = async (leadId, newStatus, days, time) => {
+    if (!supabase || session?.role === 'Viewer') return;
+    try {
+      const todayStr = getTodayString();
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          status: newStatus,
+          follow_up_days: days,
+          follow_up_time: time,
+          follow_up_channel: 'Call',
+          last_contacted_date: todayStr
+        })
+        .eq('id', leadId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error saving callback inline:', err);
+    }
+  };
+
+  const handleMarkAsContacted = async (leadId) => {
+    if (!supabase || session?.role === 'Viewer') return;
+    try {
+      const todayStr = getTodayString();
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      const isCallbackStatus = lead.status === 'Interested – Call Back Later' || lead.status === 'Uncertain – Call Back Later';
+      
+      const updateData = {
+        last_contacted_date: todayStr
+      };
+
+      if (!isCallbackStatus) {
+        const rule = getAutoFollowUpRule(lead.status);
+        updateData.follow_up_days = rule.days;
+        updateData.follow_up_channel = rule.channel;
+        updateData.follow_up_time = null;
+      }
+
+      const { error } = await supabase
+        .from('leads')
+        .update(updateData)
+        .eq('id', leadId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error marking lead as contacted:', err);
+    }
+  };
+
+  const handleViewLead = (lead) => {
+    setIsNotificationsOpen(false);
+    setSelectedLead(lead);
+    setIsLeadModalOpen(true);
   };
 
 
@@ -455,6 +602,17 @@ alter publication supabase_realtime add table collaborators;`}
     return renderSchemaInstructions();
   }
 
+  const todayStr = getTodayString();
+  const dueLeadsCount = useMemo(() => {
+    return leads.filter(lead => {
+      if (lead.status === 'Closed Won') return false;
+      if (lead.follow_up_days === null || lead.follow_up_days === undefined) return false;
+      const dueDate = getDueDateString(lead.last_contacted_date, lead.follow_up_days);
+      if (!dueDate) return false;
+      return dueDate <= todayStr;
+    }).length;
+  }, [leads, todayStr]);
+
   return (
     <div>
       {/* Header */}
@@ -473,6 +631,37 @@ alter publication supabase_realtime add table collaborators;`}
           <span className="text-xs text-muted" style={{ marginRight: '1rem' }}>
             User: <strong>{session.user.email}</strong>
           </span>
+          
+          <button 
+            className="secondary" 
+            style={{ 
+              position: 'relative', 
+              padding: '0.45rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              cursor: 'pointer' 
+            }} 
+            onClick={() => setIsNotificationsOpen(true)}
+            title="Follow-up Alerts"
+          >
+            <Bell size={14} />
+            {dueLeadsCount > 0 && (
+              <span 
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  right: '2px',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ef4444',
+                  border: '1px solid #ffffff'
+                }}
+              />
+            )}
+          </button>
+
           {!isViewer && (
             <button className="secondary" onClick={() => setIsMembersOpen(true)}>
               <Users size={14} /> Team Members
@@ -505,12 +694,9 @@ alter publication supabase_realtime add table collaborators;`}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="All">All Statuses</option>
-            <option value="Cold">Cold</option>
-            <option value="Warm">Warm</option>
-            <option value="Hot">Hot</option>
-            <option value="Meeting Booked">Meeting Booked</option>
-            <option value="Closed Won">Closed Won</option>
-            <option value="Closed Lost">Closed Lost</option>
+            {PIPELINE_STATUSES.map(st => (
+              <option key={st} value={st}>{st}</option>
+            ))}
           </select>
         </div>
 
@@ -582,6 +768,7 @@ alter publication supabase_realtime add table collaborators;`}
             setSelectedLead(lead);
             setIsLeadModalOpen(true);
           }}
+          onTriggerCallbackPrompt={handleTriggerCallbackPrompt}
           readOnly={isViewer}
         />
       )}
@@ -614,6 +801,30 @@ alter publication supabase_realtime add table collaborators;`}
       {isMembersOpen && (
         <MembersModal 
           onClose={() => setIsMembersOpen(false)} 
+        />
+      )}
+
+      {/* Notification Drawer */}
+      {isNotificationsOpen && (
+        <NotificationDrawer
+          leads={leads}
+          onMarkAsContacted={handleMarkAsContacted}
+          onViewLead={handleViewLead}
+          onClose={() => setIsNotificationsOpen(false)}
+        />
+      )}
+
+      {/* Callback Prompt Modal */}
+      {activeCallbackPrompt && (
+        <FollowUpPromptModal
+          leadName={activeCallbackPrompt.lead.full_name}
+          onConfirm={({ days, time }) => {
+            handleSaveCallbackInline(activeCallbackPrompt.lead.id, activeCallbackPrompt.newStatus, days, time);
+            setActiveCallbackPrompt(null);
+          }}
+          onCancel={() => {
+            setActiveCallbackPrompt(null);
+          }}
         />
       )}
     </div>

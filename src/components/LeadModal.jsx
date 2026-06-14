@@ -1,9 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-const STATUS_OPTIONS = ['Cold', 'Warm', 'Hot', 'Meeting Booked', 'Closed Won', 'Closed Lost'];
+const STATUS_OPTIONS = [
+  'Cold',
+  'Warm',
+  'Hot',
+  'No Answer',
+  'Interested – Call Back Later',
+  'Uncertain – Call Back Later',
+  'Thinking / Undecided',
+  'Proposal Sent',
+  'Negotiating',
+  'Meeting Booked',
+  'Meeting Done',
+  'Followed Up – No Response',
+  'Ghosted',
+  'Not Interested',
+  'Closed Won',
+  'Closed Lost'
+];
+
 const PRIORITY_OPTIONS = ['High', 'Medium', 'Low'];
 const SOURCE_OPTIONS = ['Manual', 'PhantomBuster', 'Google Sheets', 'Referral', 'Website', 'LinkedIn', 'Instagram', 'Other'];
+
+const getAutoFollowUpRule = (status) => {
+  switch (status) {
+    case 'No Answer':
+      return { days: 0, channel: 'Text + Call' };
+    case 'Thinking / Undecided':
+      return { days: 2, channel: 'WhatsApp' };
+    case 'Proposal Sent':
+      return { days: 2, channel: 'WhatsApp + Call' };
+    case 'Followed Up – No Response':
+      return { days: 3, channel: 'WhatsApp' };
+    case 'Ghosted':
+      return { days: 5, channel: 'WhatsApp only' };
+    case 'Negotiating':
+      return { days: 1, channel: 'Call' };
+    case 'Meeting Booked':
+      return { days: 0, channel: 'Call' };
+    case 'Meeting Done':
+      return { days: 1, channel: 'WhatsApp' };
+    case 'Not Interested':
+      return { days: 30, channel: 'WhatsApp only' };
+    case 'Closed Lost':
+      return { days: 30, channel: 'WhatsApp only' };
+    default:
+      return { days: null, channel: 'none' };
+  }
+};
+
+const getTodayString = () => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 export default function LeadModal({ lead, customColumns = [], onClose, onSave }) {
   const [formData, setFormData] = useState({
@@ -17,7 +70,10 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
     meeting_date: '',
     general_notes: '',
     instagram_handle: '',
-    approached: ''
+    last_contacted_date: getTodayString(),
+    follow_up_days: '',
+    follow_up_time: '',
+    follow_up_channel: 'none'
   });
 
   const [customFields, setCustomFields] = useState({});
@@ -35,7 +91,10 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         meeting_date: lead.meeting_date || '',
         general_notes: lead.general_notes || '',
         instagram_handle: lead.instagram_handle || '',
-        approached: lead.approached || ''
+        last_contacted_date: lead.last_contacted_date || getTodayString(),
+        follow_up_days: lead.follow_up_days !== null && lead.follow_up_days !== undefined ? lead.follow_up_days : '',
+        follow_up_time: lead.follow_up_time || '',
+        follow_up_channel: lead.follow_up_channel || 'none'
       });
 
       // Populate custom fields
@@ -58,7 +117,10 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         meeting_date: '',
         general_notes: '',
         instagram_handle: '',
-        approached: ''
+        last_contacted_date: getTodayString(),
+        follow_up_days: '',
+        follow_up_time: '',
+        follow_up_channel: 'none'
       });
 
       const initialCustom = {};
@@ -68,6 +130,26 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
       setCustomFields(initialCustom);
     }
   }, [lead, customColumns]);
+
+  // Handle status rules dynamically when status changes
+  useEffect(() => {
+    const isCallbackStatus = formData.status === 'Interested – Call Back Later' || formData.status === 'Uncertain – Call Back Later';
+    if (!isCallbackStatus) {
+      const rule = getAutoFollowUpRule(formData.status);
+      setFormData(prev => ({
+        ...prev,
+        follow_up_days: rule.days !== null ? rule.days : '',
+        follow_up_channel: rule.channel,
+        follow_up_time: ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        follow_up_channel: 'Call',
+        follow_up_days: prev.follow_up_days !== '' ? prev.follow_up_days : 1
+      }));
+    }
+  }, [formData.status]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -87,15 +169,25 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
       cleanHandle = `@${cleanHandle}`;
     }
 
+    const isCallbackStatus = formData.status === 'Interested – Call Back Later' || formData.status === 'Uncertain – Call Back Later';
+    const finalDays = isCallbackStatus 
+      ? parseInt(formData.follow_up_days, 10) 
+      : (getAutoFollowUpRule(formData.status).days !== null ? getAutoFollowUpRule(formData.status).days : null);
+
     const leadData = {
       ...formData,
       meeting_date: formData.status === 'Meeting Booked' ? (formData.meeting_date || null) : null,
       instagram_handle: cleanHandle,
+      follow_up_days: finalDays !== null && !isNaN(finalDays) ? finalDays : null,
+      follow_up_time: isCallbackStatus && formData.follow_up_time ? formData.follow_up_time : null,
+      follow_up_channel: isCallbackStatus ? 'Call' : getAutoFollowUpRule(formData.status).channel,
       custom_fields: customFields
     };
 
     onSave(leadData);
   };
+
+  const isCallbackStatus = formData.status === 'Interested – Call Back Later' || formData.status === 'Uncertain – Call Back Later';
 
   return (
     <div className="modal-overlay">
@@ -196,6 +288,45 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
               </select>
             </div>
 
+            <div className="form-group">
+              <label htmlFor="last_contacted_date">Last Contacted Date *</label>
+              <input
+                id="last_contacted_date"
+                name="last_contacted_date"
+                type="date"
+                value={formData.last_contacted_date}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {isCallbackStatus && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="follow_up_days">Call back in how many days? *</label>
+                  <input
+                    id="follow_up_days"
+                    name="follow_up_days"
+                    type="number"
+                    min="0"
+                    value={formData.follow_up_days}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="follow_up_time">Preferred Time</label>
+                  <input
+                    id="follow_up_time"
+                    name="follow_up_time"
+                    type="time"
+                    value={formData.follow_up_time}
+                    onChange={handleChange}
+                  />
+                </div>
+              </>
+            )}
+
             {formData.status === 'Meeting Booked' && (
               <>
                 <div className="form-group">
@@ -216,6 +347,13 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
             )}
 
             <div className="form-group">
+              <label>Follow-up Channel</label>
+              <div style={{ padding: '0.5rem 0.75rem', backgroundColor: '#fafafa', border: '1px solid #e5e7eb', fontSize: '0.875rem', fontWeight: 600, textTransform: 'uppercase', color: '#be185d' }}>
+                {formData.follow_up_channel}
+              </div>
+            </div>
+
+            <div className="form-group">
               <label htmlFor="instagram_handle">Instagram Handle</label>
               <input
                 id="instagram_handle"
@@ -223,22 +361,6 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
                 type="text"
                 placeholder="@username"
                 value={formData.instagram_handle}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="form-group">
-              {/* Spacer */}
-            </div>
-
-            <div className="form-group-full">
-              <label htmlFor="approached">Approached</label>
-              <input
-                id="approached"
-                name="approached"
-                type="text"
-                placeholder="e.g. DMed on June 12, Email sent, Not yet approached"
-                value={formData.approached}
                 onChange={handleChange}
               />
             </div>

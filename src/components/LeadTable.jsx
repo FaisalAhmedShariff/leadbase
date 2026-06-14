@@ -20,6 +20,34 @@ const Instagram = ({ size = 12, ...props }) => (
   </svg>
 );
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
+const PIPELINE_STATUSES = [
+  'Cold',
+  'Warm',
+  'Hot',
+  'No Answer',
+  'Interested – Call Back Later',
+  'Uncertain – Call Back Later',
+  'Thinking / Undecided',
+  'Proposal Sent',
+  'Negotiating',
+  'Meeting Booked',
+  'Meeting Done',
+  'Followed Up – No Response',
+  'Ghosted',
+  'Not Interested',
+  'Closed Won',
+  'Closed Lost'
+];
+
 export default function LeadTable({
   leads,
   customColumns,
@@ -28,6 +56,7 @@ export default function LeadTable({
   onUpdateLead,
   onDeleteLead,
   onEditClick,
+  onTriggerCallbackPrompt,
   readOnly = false
 }) {
   const [activeDropdown, setActiveDropdown] = useState(null); // leadId
@@ -48,13 +77,29 @@ export default function LeadTable({
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'Cold': return 'badge-cold';
-      case 'Warm': return 'badge-warm';
-      case 'Hot': return 'badge-hot';
-      case 'Meeting Booked': return 'badge-meeting';
-      case 'Closed Won': return 'badge-closed-won';
-      case 'Closed Lost': return 'badge-closed-lost';
-      default: return '';
+      case 'Cold':
+      case 'No Answer':
+        return 'badge-cold';
+      case 'Warm':
+      case 'Interested – Call Back Later':
+      case 'Uncertain – Call Back Later':
+      case 'Thinking / Undecided':
+      case 'Proposal Sent':
+      case 'Negotiating':
+        return 'badge-warm';
+      case 'Hot':
+        return 'badge-hot';
+      case 'Meeting Booked':
+      case 'Meeting Done':
+      case 'Closed Won':
+        return 'badge-meeting';
+      case 'Closed Lost':
+      case 'Not Interested':
+      case 'Followed Up – No Response':
+      case 'Ghosted':
+        return 'badge-closed-lost';
+      default:
+        return '';
     }
   };
 
@@ -80,7 +125,6 @@ export default function LeadTable({
       return;
     }
     
-    // Only update if value changed
     const currentVal = isCustom 
       ? (lead.custom_fields && lead.custom_fields[field]) || '' 
       : lead[field] || '';
@@ -117,7 +161,12 @@ export default function LeadTable({
 
   const handleStatusChange = (leadId, newStatus) => {
     if (readOnly) return;
-    onUpdateLead(leadId, { status: newStatus });
+    if (newStatus === 'Interested – Call Back Later' || newStatus === 'Uncertain – Call Back Later') {
+      const targetLead = leads.find(l => l.id === leadId);
+      onTriggerCallbackPrompt(targetLead, newStatus);
+    } else {
+      onUpdateLead(leadId, { status: newStatus });
+    }
     setActiveDropdown(null);
   };
 
@@ -150,11 +199,11 @@ export default function LeadTable({
             <th onClick={() => onRequestSort('meeting_date')}>
               <div className="th-content">Meeting Date {renderSortIcon('meeting_date')}</div>
             </th>
+            <th onClick={() => onRequestSort('last_contacted_date')}>
+              <div className="th-content">Last Contact {renderSortIcon('last_contacted_date')}</div>
+            </th>
             <th onClick={() => onRequestSort('instagram_handle')}>
               <div className="th-content">IG Handle {renderSortIcon('instagram_handle')}</div>
-            </th>
-            <th onClick={() => onRequestSort('approached')}>
-              <div className="th-content">Approached {renderSortIcon('approached')}</div>
             </th>
             <th onClick={() => onRequestSort('general_notes')}>
               <div className="th-content">General Notes {renderSortIcon('general_notes')}</div>
@@ -267,8 +316,8 @@ export default function LeadTable({
                     {lead.status}
                   </div>
                   {activeDropdown === lead.id && !readOnly && (
-                    <div className="status-dropdown" ref={dropdownRef}>
-                      {['Cold', 'Warm', 'Hot', 'Meeting Booked', 'Closed Won', 'Closed Lost'].map(st => (
+                    <div className="status-dropdown" ref={dropdownRef} style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {PIPELINE_STATUSES.map(st => (
                         <div
                           key={st}
                           className="status-dropdown-item"
@@ -330,6 +379,24 @@ export default function LeadTable({
                   />
                 </td>
 
+                {/* Last Contact */}
+                <td className="cell-editable">
+                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'last_contacted_date' ? (
+                    <input
+                      className="cell-input"
+                      type="date"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => handleCellSave(lead, 'last_contacted_date')}
+                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'last_contacted_date')}
+                      autoFocus
+                    />
+                  ) : (
+                    <span onClick={() => handleCellClick(lead.id, 'last_contacted_date', lead.last_contacted_date)} style={{ display: 'block', minHeight: '1.2rem' }}>
+                      {formatDate(lead.last_contacted_date)}
+                    </span>
+                  )}
+                </td>
 
                 {/* Instagram Handle Badge */}
                 <td className="cell-editable">
@@ -366,25 +433,6 @@ export default function LeadTable({
                       ) : (
                         readOnly ? '—' : <span style={{ color: '#ccc', fontSize: '0.75rem' }}>+ Add IG</span>
                       )}
-                    </span>
-                  )}
-                </td>
-
-                {/* Approached */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'approached' ? (
-                    <input
-                      className="cell-input"
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'approached')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'approached')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'approached', lead.approached)} style={{ display: 'block', minHeight: '1.2rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {lead.approached || '—'}
                     </span>
                   )}
                 </td>
