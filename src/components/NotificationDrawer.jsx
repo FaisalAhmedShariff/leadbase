@@ -90,23 +90,7 @@ export default function NotificationDrawer({ leads = [], onMarkAsContacted, onVi
       />
 
       {/* Drawer */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: '100%',
-          maxWidth: '420px',
-          backgroundColor: '#ffffff',
-          borderLeft: '2px solid #111111',
-          zIndex: 500,
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '2rem',
-          boxSizing: 'border-box'
-        }}
-      >
+      <div className="notification-drawer">
         <div className="modal-header" style={{ marginBottom: '1.5rem', borderBottom: '1px solid #111111', paddingBottom: '0.75rem' }}>
           <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <AlertCircle size={18} style={{ color: '#dc2626' }} /> Follow-up Alerts
