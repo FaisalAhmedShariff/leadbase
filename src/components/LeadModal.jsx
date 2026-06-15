@@ -2,22 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 const STATUS_OPTIONS = [
-  'Cold',
+  'cold/ Not Contacted',
   'Warm',
-  'Hot',
-  'No Answer',
   'Interested – Call Back Later',
   'Uncertain – Call Back Later',
-  'Thinking / Undecided',
   'Proposal Sent',
-  'Negotiating',
-  'Meeting Booked',
-  'Meeting Done',
-  'Followed Up – No Response',
-  'Ghosted',
-  'Not Interested',
-  'Closed Won',
-  'Closed Lost'
+  'No Answer / Ghosted',
+  'Closed'
 ];
 
 const PRIORITY_OPTIONS = ['High', 'Medium', 'Low'];
@@ -25,26 +16,17 @@ const SOURCE_OPTIONS = ['Manual', 'PhantomBuster', 'Google Sheets', 'Referral', 
 
 const getAutoFollowUpRule = (status) => {
   switch (status) {
-    case 'No Answer':
-      return { days: 0, channel: 'Text + Call' };
-    case 'Thinking / Undecided':
-      return { days: 2, channel: 'WhatsApp' };
+    case 'cold/ Not Contacted':
+      return { days: 1, channel: 'Call' };
+    case 'Warm':
+      return { days: 3, channel: 'WhatsApp' };
+    case 'Interested – Call Back Later':
+      return { days: 2, channel: 'Call' };
     case 'Proposal Sent':
       return { days: 2, channel: 'WhatsApp + Call' };
-    case 'Followed Up – No Response':
-      return { days: 3, channel: 'WhatsApp' };
-    case 'Ghosted':
-      return { days: 5, channel: 'WhatsApp only' };
-    case 'Negotiating':
+    case 'No Answer / Ghosted':
       return { days: 1, channel: 'Call' };
-    case 'Meeting Booked':
-      return { days: 0, channel: 'Call' };
-    case 'Meeting Done':
-      return { days: 1, channel: 'WhatsApp' };
-    case 'Not Interested':
-      return { days: 30, channel: 'WhatsApp only' };
-    case 'Closed Lost':
-      return { days: 30, channel: 'WhatsApp only' };
+    case 'Closed':
     default:
       return { days: null, channel: 'none' };
   }
@@ -58,13 +40,43 @@ const getTodayString = () => {
   return `${y}-${m}-${d}`;
 };
 
+const getDueDateString = (lastContactedStr, days) => {
+  if (!lastContactedStr || days === null || days === undefined) return '';
+  const parts = lastContactedStr.split('-');
+  if (parts.length !== 3) return '';
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  
+  const date = new Date(year, month, day);
+  date.setDate(date.getDate() + days);
+  
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const getDaysDifference = (dateStr1, dateStr2) => {
+  if (!dateStr1 || !dateStr2) return 0;
+  const parts1 = dateStr1.split('-');
+  const parts2 = dateStr2.split('-');
+  if (parts1.length !== 3 || parts2.length !== 3) return 0;
+  
+  const d1 = new Date(parseInt(parts1[0], 10), parseInt(parts1[1], 10) - 1, parseInt(parts1[2], 10));
+  const d2 = new Date(parseInt(parts2[0], 10), parseInt(parts2[1], 10) - 1, parseInt(parts2[2], 10));
+  
+  const diffTime = d1 - d2;
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+};
+
 export default function LeadModal({ lead, customColumns = [], onClose, onSave }) {
   const [formData, setFormData] = useState({
     full_name: '',
     business_name: '',
     phone: '',
     email: '',
-    status: 'Cold',
+    status: 'cold/ Not Contacted',
     priority: 'Medium',
     lead_source: 'Manual',
     meeting_date: '',
@@ -77,6 +89,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
   });
 
   const [customFields, setCustomFields] = useState({});
+  const [customCallbackDate, setCustomCallbackDate] = useState('');
 
   useEffect(() => {
     if (lead) {
@@ -85,7 +98,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         business_name: lead.business_name || '',
         phone: lead.phone || '',
         email: lead.email || '',
-        status: lead.status || 'Cold',
+        status: lead.status || 'cold/ Not Contacted',
         priority: lead.priority || 'Medium',
         lead_source: lead.lead_source || 'Manual',
         meeting_date: lead.meeting_date || '',
@@ -96,6 +109,12 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         follow_up_time: lead.follow_up_time || '',
         follow_up_channel: lead.follow_up_channel || 'none'
       });
+
+      if (lead.status === 'Uncertain – Call Back Later') {
+        setCustomCallbackDate(getDueDateString(lead.last_contacted_date, lead.follow_up_days));
+      } else {
+        setCustomCallbackDate('');
+      }
 
       // Populate custom fields
       const initialCustom = {};
@@ -111,7 +130,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         business_name: '',
         phone: '',
         email: '',
-        status: 'Cold',
+        status: 'cold/ Not Contacted',
         priority: 'Medium',
         lead_source: 'Manual',
         meeting_date: '',
@@ -122,6 +141,7 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
         follow_up_time: '',
         follow_up_channel: 'none'
       });
+      setCustomCallbackDate('');
 
       const initialCustom = {};
       customColumns.forEach(col => {
@@ -133,20 +153,29 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
 
   // Handle status rules dynamically when status changes
   useEffect(() => {
-    const isCallbackStatus = formData.status === 'Interested – Call Back Later' || formData.status === 'Uncertain – Call Back Later';
-    if (!isCallbackStatus) {
+    if (formData.status === 'Uncertain – Call Back Later') {
+      setFormData(prev => ({
+        ...prev,
+        follow_up_days: '',
+        follow_up_channel: 'Call',
+        follow_up_time: ''
+      }));
+      // Default customCallbackDate to tomorrow if empty
+      if (!customCallbackDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const y = tomorrow.getFullYear();
+        const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const d = String(tomorrow.getDate()).padStart(2, '0');
+        setCustomCallbackDate(`${y}-${m}-${d}`);
+      }
+    } else {
       const rule = getAutoFollowUpRule(formData.status);
       setFormData(prev => ({
         ...prev,
         follow_up_days: rule.days !== null ? rule.days : '',
         follow_up_channel: rule.channel,
         follow_up_time: ''
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        follow_up_channel: 'Call',
-        follow_up_days: prev.follow_up_days !== '' ? prev.follow_up_days : 1
       }));
     }
   }, [formData.status]);
@@ -186,10 +215,21 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
       cleanCustomFields[col] = val && val.trim() !== '' ? val.trim() : '----';
     });
 
-    const isCallbackStatus = formData.status === 'Interested – Call Back Later' || formData.status === 'Uncertain – Call Back Later';
-    const finalDays = isCallbackStatus 
-      ? (formData.follow_up_days !== '' ? parseInt(formData.follow_up_days, 10) : null)
-      : (getAutoFollowUpRule(formData.status).days !== null ? getAutoFollowUpRule(formData.status).days : null);
+    const isUncertain = formData.status === 'Uncertain – Call Back Later';
+    let finalDays = null;
+    let finalChannel = 'none';
+
+    if (isUncertain) {
+      finalChannel = 'Call';
+      if (customCallbackDate) {
+        const lastContact = formData.last_contacted_date || getTodayString();
+        finalDays = getDaysDifference(customCallbackDate, lastContact);
+      }
+    } else {
+      const rule = getAutoFollowUpRule(formData.status);
+      finalDays = rule.days;
+      finalChannel = rule.channel;
+    }
 
     const leadData = {
       ...formData,
@@ -199,11 +239,11 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
       email: cleanEmail,
       general_notes: cleanNotes,
       instagram_handle: cleanHandle,
-      meeting_date: formData.status === 'Meeting Booked' ? (formData.meeting_date || null) : null,
+      meeting_date: null, // Since 'Meeting Booked' status is removed, meeting_date is always null
       last_contacted_date: formData.last_contacted_date || null,
       follow_up_days: finalDays !== null && !isNaN(finalDays) ? finalDays : null,
-      follow_up_time: isCallbackStatus && formData.follow_up_time ? formData.follow_up_time : null,
-      follow_up_channel: isCallbackStatus ? 'Call' : getAutoFollowUpRule(formData.status).channel,
+      follow_up_time: null, // time picker is no longer used
+      follow_up_channel: finalChannel,
       custom_fields: cleanCustomFields
     };
 
@@ -321,48 +361,18 @@ export default function LeadModal({ lead, customColumns = [], onClose, onSave })
               />
             </div>
 
-            {isCallbackStatus && (
-              <>
-                <div className="form-group">
-                  <label htmlFor="follow_up_days">Call back in how many days?</label>
-                  <input
-                    id="follow_up_days"
-                    name="follow_up_days"
-                    type="number"
-                    min="0"
-                    value={formData.follow_up_days}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="follow_up_time">Preferred Time</label>
-                  <input
-                    id="follow_up_time"
-                    name="follow_up_time"
-                    type="time"
-                    value={formData.follow_up_time}
-                    onChange={handleChange}
-                  />
-                </div>
-              </>
-            )}
-
-            {formData.status === 'Meeting Booked' && (
-              <>
-                <div className="form-group">
-                  <label htmlFor="meeting_date">Meeting Date</label>
-                  <input
-                    id="meeting_date"
-                    name="meeting_date"
-                    type="date"
-                    value={formData.meeting_date}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div className="form-group">
-                  {/* Spacer */}
-                </div>
-              </>
+            {formData.status === 'Uncertain – Call Back Later' && (
+              <div className="form-group-full">
+                <label htmlFor="custom_callback_date">When did they ask you to call back? *</label>
+                <input
+                  id="custom_callback_date"
+                  name="custom_callback_date"
+                  type="date"
+                  value={customCallbackDate}
+                  onChange={(e) => setCustomCallbackDate(e.target.value)}
+                  required
+                />
+              </div>
             )}
 
             <div className="form-group">

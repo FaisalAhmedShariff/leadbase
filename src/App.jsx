@@ -21,46 +21,28 @@ import {
 } from 'lucide-react';
 
 const PIPELINE_STATUSES = [
-  'Cold',
+  'cold/ Not Contacted',
   'Warm',
-  'Hot',
-  'No Answer',
   'Interested – Call Back Later',
   'Uncertain – Call Back Later',
-  'Thinking / Undecided',
   'Proposal Sent',
-  'Negotiating',
-  'Meeting Booked',
-  'Meeting Done',
-  'Followed Up – No Response',
-  'Ghosted',
-  'Not Interested',
-  'Closed Won',
-  'Closed Lost'
+  'No Answer / Ghosted',
+  'Closed'
 ];
 
 const getAutoFollowUpRule = (status) => {
   switch (status) {
-    case 'No Answer':
-      return { days: 0, channel: 'Text + Call' };
-    case 'Thinking / Undecided':
-      return { days: 2, channel: 'WhatsApp' };
+    case 'cold/ Not Contacted':
+      return { days: 1, channel: 'Call' };
+    case 'Warm':
+      return { days: 3, channel: 'WhatsApp' };
+    case 'Interested – Call Back Later':
+      return { days: 2, channel: 'Call' };
     case 'Proposal Sent':
       return { days: 2, channel: 'WhatsApp + Call' };
-    case 'Followed Up – No Response':
-      return { days: 3, channel: 'WhatsApp' };
-    case 'Ghosted':
-      return { days: 5, channel: 'WhatsApp only' };
-    case 'Negotiating':
+    case 'No Answer / Ghosted':
       return { days: 1, channel: 'Call' };
-    case 'Meeting Booked':
-      return { days: 0, channel: 'Call' };
-    case 'Meeting Done':
-      return { days: 1, channel: 'WhatsApp' };
-    case 'Not Interested':
-      return { days: 30, channel: 'WhatsApp only' };
-    case 'Closed Lost':
-      return { days: 30, channel: 'WhatsApp only' };
+    case 'Closed':
     default:
       return { days: null, channel: 'none' };
   }
@@ -89,6 +71,19 @@ const getDueDateString = (lastContactedStr, days) => {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+};
+
+const getDaysDifference = (dateStr1, dateStr2) => {
+  if (!dateStr1 || !dateStr2) return 0;
+  const parts1 = dateStr1.split('-');
+  const parts2 = dateStr2.split('-');
+  if (parts1.length !== 3 || parts2.length !== 3) return 0;
+  
+  const d1 = new Date(parseInt(parts1[0], 10), parseInt(parts1[1], 10) - 1, parseInt(parts1[2], 10));
+  const d2 = new Date(parseInt(parts2[0], 10), parseInt(parts2[1], 10) - 1, parseInt(parts2[2], 10));
+  
+  const diffTime = d1 - d2;
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
 
 export default function App() {
@@ -126,7 +121,7 @@ export default function App() {
   const todayStr = getTodayString();
   const dueLeadsCount = useMemo(() => {
     return leads.filter(lead => {
-      if (lead.status === 'Closed Won') return false;
+      if (lead.status === 'Closed') return false;
       if (lead.follow_up_days === null || lead.follow_up_days === undefined) return false;
       const dueDate = getDueDateString(lead.last_contacted_date, lead.follow_up_days);
       if (!dueDate) return false;
@@ -306,7 +301,7 @@ export default function App() {
         .from('leads')
         .insert([{
           full_name: 'New Lead',
-          status: 'Cold',
+          status: 'cold/ Not Contacted',
           priority: 'Medium',
           lead_source: 'Manual',
           custom_fields: {}
@@ -349,10 +344,8 @@ export default function App() {
     try {
       let fields = { ...updatedFields };
       if (fields.status) {
-        if (fields.status !== 'Meeting Booked') {
-          fields.meeting_date = null;
-        }
-        if (fields.status !== 'Interested – Call Back Later' && fields.status !== 'Uncertain – Call Back Later') {
+        fields.meeting_date = null; // meeting_date is removed, always keep null
+        if (fields.status !== 'Uncertain – Call Back Later') {
           const rule = getAutoFollowUpRule(fields.status);
           fields.follow_up_days = rule.days;
           fields.follow_up_channel = rule.channel;
@@ -376,18 +369,23 @@ export default function App() {
     setActiveCallbackPrompt({ lead, newStatus });
   };
 
-  const handleSaveCallbackInline = async (leadId, newStatus, days, time) => {
+  const handleSaveCallbackInline = async (leadId, newStatus, date) => {
     if (!supabase || session?.role === 'Viewer') return;
     try {
       const todayStr = getTodayString();
+      const lead = leads.find(l => l.id === leadId);
+      const lastContact = lead?.last_contacted_date || todayStr;
+      
+      const days = getDaysDifference(date, lastContact);
+
       const { error } = await supabase
         .from('leads')
         .update({
           status: newStatus,
           follow_up_days: days,
-          follow_up_time: time,
+          follow_up_time: null,
           follow_up_channel: 'Call',
-          last_contacted_date: todayStr
+          last_contacted_date: lastContact
         })
         .eq('id', leadId);
 
@@ -404,13 +402,13 @@ export default function App() {
       const lead = leads.find(l => l.id === leadId);
       if (!lead) return;
 
-      const isCallbackStatus = lead.status === 'Interested – Call Back Later' || lead.status === 'Uncertain – Call Back Later';
+      const isUncertain = lead.status === 'Uncertain – Call Back Later';
       
       const updateData = {
         last_contacted_date: todayStr
       };
 
-      if (!isCallbackStatus) {
+      if (!isUncertain) {
         const rule = getAutoFollowUpRule(lead.status);
         updateData.follow_up_days = rule.days;
         updateData.follow_up_channel = rule.channel;
@@ -546,7 +544,7 @@ export default function App() {
   business_name text,
   phone text,
   email text,
-  status text check (status in ('Cold', 'Warm', 'Hot', 'Meeting Booked', 'Closed Won', 'Closed Lost')) default 'Cold',
+  status text check (status in ('cold/ Not Contacted', 'Warm', 'Interested – Call Back Later', 'Uncertain – Call Back Later', 'Proposal Sent', 'No Answer / Ghosted', 'Closed')) default 'cold/ Not Contacted',
   priority text check (priority in ('High', 'Medium', 'Low')) default 'Medium',
   lead_source text check (lead_source in ('Manual', 'PhantomBuster', 'Google Sheets', 'Referral', 'Website', 'LinkedIn', 'Instagram', 'Other')) default 'Manual',
   meeting_date date,
@@ -818,8 +816,8 @@ alter publication supabase_realtime add table collaborators;`}
       {activeCallbackPrompt && (
         <FollowUpPromptModal
           leadName={activeCallbackPrompt.lead.full_name}
-          onConfirm={({ days, time }) => {
-            handleSaveCallbackInline(activeCallbackPrompt.lead.id, activeCallbackPrompt.newStatus, days, time);
+          onConfirm={({ date }) => {
+            handleSaveCallbackInline(activeCallbackPrompt.lead.id, activeCallbackPrompt.newStatus, date);
             setActiveCallbackPrompt(null);
           }}
           onCancel={() => {

@@ -55,8 +55,8 @@ export default function NotificationDrawer({ leads = [], onMarkAsContacted, onVi
   const activeNotifications = useMemo(() => {
     return leads
       .filter(lead => {
-        // Leads with status Closed Won never appear
-        if (lead.status === 'Closed Won') return false;
+        // Leads with status Closed never appear
+        if (lead.status === 'Closed') return false;
         
         // Exclude if no follow up days set
         if (lead.follow_up_days === null || lead.follow_up_days === undefined) return false;

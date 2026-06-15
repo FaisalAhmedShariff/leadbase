@@ -3,22 +3,20 @@ import React from 'react';
 export default function StatsBar({ leads = [] }) {
   const totalLeads = leads.length;
 
-  const warmAndHot = leads.filter(
-    (lead) => lead.status === 'Warm' || lead.status === 'Hot'
+  const warmLeads = leads.filter(
+    (lead) => lead.status === 'Warm'
   ).length;
 
-  const meetingsBooked = leads.filter(
-    (lead) => lead.status === 'Meeting Booked'
+  const callbacksScheduled = leads.filter(
+    (lead) => lead.status === 'Interested – Call Back Later' || lead.status === 'Uncertain – Call Back Later'
   ).length;
 
-  const closedWon = leads.filter(
-    (lead) => lead.status === 'Closed Won'
+  const proposalsSent = leads.filter(
+    (lead) => lead.status === 'Proposal Sent'
   ).length;
 
-  const instagramLeads = leads.filter(
-    (lead) =>
-      lead.lead_source === 'Instagram' ||
-      (lead.instagram_handle && lead.instagram_handle.trim().replace(/^@/, '').length > 0)
+  const closedLeads = leads.filter(
+    (lead) => lead.status === 'Closed'
   ).length;
 
   return (
@@ -28,20 +26,20 @@ export default function StatsBar({ leads = [] }) {
         <span className="stat-value">{totalLeads}</span>
       </div>
       <div className="stat-card">
-        <span className="stat-label">Warm + Hot</span>
-        <span className="stat-value">{warmAndHot}</span>
+        <span className="stat-label">Warm Leads</span>
+        <span className="stat-value">{warmLeads}</span>
       </div>
       <div className="stat-card">
-        <span className="stat-label">Meetings Booked</span>
-        <span className="stat-value">{meetingsBooked}</span>
+        <span className="stat-label">Callbacks Scheduled</span>
+        <span className="stat-value">{callbacksScheduled}</span>
       </div>
       <div className="stat-card">
-        <span className="stat-label">Closed Won</span>
-        <span className="stat-value">{closedWon}</span>
+        <span className="stat-label">Proposals Sent</span>
+        <span className="stat-value">{proposalsSent}</span>
       </div>
       <div className="stat-card">
-        <span className="stat-label">Instagram Leads</span>
-        <span className="stat-value">{instagramLeads}</span>
+        <span className="stat-label">Closed</span>
+        <span className="stat-value">{closedLeads}</span>
       </div>
     </div>
   );

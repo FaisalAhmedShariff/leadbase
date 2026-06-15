@@ -30,22 +30,13 @@ const formatDate = (dateStr) => {
 };
 
 const PIPELINE_STATUSES = [
-  'Cold',
+  'cold/ Not Contacted',
   'Warm',
-  'Hot',
-  'No Answer',
   'Interested – Call Back Later',
   'Uncertain – Call Back Later',
-  'Thinking / Undecided',
   'Proposal Sent',
-  'Negotiating',
-  'Meeting Booked',
-  'Meeting Done',
-  'Followed Up – No Response',
-  'Ghosted',
-  'Not Interested',
-  'Closed Won',
-  'Closed Lost'
+  'No Answer / Ghosted',
+  'Closed'
 ];
 
 export default function LeadTable({
@@ -77,27 +68,16 @@ export default function LeadTable({
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'Cold':
-      case 'No Answer':
+      case 'cold/ Not Contacted':
+      case 'No Answer / Ghosted':
         return 'badge-cold';
       case 'Warm':
       case 'Interested – Call Back Later':
       case 'Uncertain – Call Back Later':
-      case 'Thinking / Undecided':
       case 'Proposal Sent':
-      case 'Negotiating':
         return 'badge-warm';
-      case 'Hot':
-        return 'badge-hot';
-      case 'Meeting Booked':
-      case 'Meeting Done':
-      case 'Closed Won':
+      case 'Closed':
         return 'badge-meeting';
-      case 'Closed Lost':
-      case 'Not Interested':
-      case 'Followed Up – No Response':
-      case 'Ghosted':
-        return 'badge-closed-lost';
       default:
         return '';
     }
@@ -161,7 +141,7 @@ export default function LeadTable({
 
   const handleStatusChange = (leadId, newStatus) => {
     if (readOnly) return;
-    if (newStatus === 'Interested – Call Back Later' || newStatus === 'Uncertain – Call Back Later') {
+    if (newStatus === 'Uncertain – Call Back Later') {
       const targetLead = leads.find(l => l.id === leadId);
       onTriggerCallbackPrompt(targetLead, newStatus);
     } else {

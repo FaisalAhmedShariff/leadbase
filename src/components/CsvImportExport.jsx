@@ -187,10 +187,37 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
   };
 
   const getCleanStatus = (val) => {
-    const valid = ['Cold', 'Warm', 'Hot', 'Meeting Booked', 'Closed Won', 'Closed Lost'];
-    const cleaned = val.toLowerCase().replace(/[^a-z\s]/g, '').trim();
-    const match = valid.find(v => v.toLowerCase() === cleaned);
-    return match || 'Cold';
+    if (!val) return 'cold/ Not Contacted';
+    const valid = [
+      'cold/ Not Contacted',
+      'Warm',
+      'Interested – Call Back Later',
+      'Uncertain – Call Back Later',
+      'Proposal Sent',
+      'No Answer / Ghosted',
+      'Closed'
+    ];
+    const cleaned = val.toLowerCase().trim();
+    
+    // Direct matches by stripping special characters
+    const match = valid.find(v => {
+      const cleanV = v.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanInput = cleaned.replace(/[^a-z0-9]/g, '');
+      return cleanV === cleanInput || cleanV.includes(cleanInput) || cleanInput.includes(cleanV);
+    });
+
+    if (match) return match;
+
+    // Legacy status mappings fallback
+    if (cleaned.includes('cold')) return 'cold/ Not Contacted';
+    if (cleaned.includes('warm') || cleaned.includes('hot') || cleaned.includes('meeting')) return 'Warm';
+    if (cleaned.includes('proposal') || cleaned.includes('negotiat')) return 'Proposal Sent';
+    if (cleaned.includes('answer') || cleaned.includes('ghost') || cleaned.includes('no response')) return 'No Answer / Ghosted';
+    if (cleaned.includes('closed') || cleaned.includes('lost') || cleaned.includes('won') || cleaned.includes('not interested')) return 'Closed';
+    if (cleaned.includes('interested')) return 'Interested – Call Back Later';
+    if (cleaned.includes('uncertain')) return 'Uncertain – Call Back Later';
+
+    return 'cold/ Not Contacted';
   };
 
   const getCleanPriority = (val) => {

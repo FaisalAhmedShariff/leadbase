@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
 export default function FollowUpPromptModal({ leadName, onConfirm, onCancel }) {
-  const [days, setDays] = useState(1);
-  const [time, setTime] = useState('');
+  const [date, setDate] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const daysNum = parseInt(days, 10);
-    if (isNaN(daysNum) || daysNum < 0) return;
-    onConfirm({ days: daysNum, time: time || null });
+    if (!date) return;
+    onConfirm({ date });
   };
 
   return (
@@ -23,29 +21,18 @@ export default function FollowUpPromptModal({ leadName, onConfirm, onCancel }) {
         </div>
 
         <p className="text-xs text-muted mb-4">
-          Set up a custom callback reminder for <strong>{leadName || 'this lead'}</strong>.
+          Set up a custom callback date for <strong>{leadName || 'this lead'}</strong>.
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="callback-days">Call back in how many days? *</label>
-            <input
-              id="callback-days"
-              type="number"
-              min="0"
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-              required
-            />
-          </div>
-
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-            <label htmlFor="callback-time">Preferred Time (Optional)</label>
+            <label htmlFor="callback-date">When did they ask you to call back? *</label>
             <input
-              id="callback-time"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
+              id="callback-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
             />
           </div>
 
