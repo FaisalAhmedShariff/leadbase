@@ -98,12 +98,12 @@ export default function LeadModal({
     website: '',
     location: '',
     niche: '',
-    ai_lead_score: 75,
+    ai_lead_score: '',
     research_status: 'Not Researched',
     outreach_status: 'Not Drafted',
     website_exists: true,
     website_status: 'Active',
-    website_score: 72,
+    website_score: '',
     primary_opportunity: 'Custom Interactive Website',
     secondary_opportunities: ['Google Ads', 'Local SEO'],
     ai_reasoning: 'The business is active but has a visually dated website with a weak booking flow, resulting in lost conversions.',
@@ -146,12 +146,12 @@ export default function LeadModal({
         website: lead.website || '',
         location: lead.location || '',
         niche: lead.niche || '',
-        ai_lead_score: lead.ai_lead_score !== undefined && lead.ai_lead_score !== null ? lead.ai_lead_score : 75,
+        ai_lead_score: lead.ai_lead_score !== undefined && lead.ai_lead_score !== null && lead.ai_lead_score !== '' ? lead.ai_lead_score : '',
         research_status: lead.research_status || 'Not Researched',
         outreach_status: lead.outreach_status || 'Not Drafted',
         website_exists: lead.website_exists !== false,
         website_status: lead.website_status || 'Active',
-        website_score: lead.website_score || 72,
+        website_score: lead.website_score !== undefined && lead.website_score !== null ? lead.website_score : '',
         primary_opportunity: lead.primary_opportunity || 'Custom Interactive Website',
         secondary_opportunities: Array.isArray(lead.secondary_opportunities) 
           ? lead.secondary_opportunities 
@@ -404,12 +404,16 @@ export default function LeadModal({
                     <Sparkles size={14} /> Lead Status & AI Score
                   </h4>
                   <div className="flex items-center gap-3 my-2">
-                    <div style={{ border: '2px solid #111', width: '54px', height: '54px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.1rem' }}>
-                      {formData.ai_lead_score || 50}
+                    <div style={{ border: '2px solid #111', width: '54px', height: '54px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: formData.ai_lead_score !== '' ? '1.1rem' : '1.3rem', backgroundColor: formData.ai_lead_score !== '' ? '#fff' : '#f3f4f6', color: formData.ai_lead_score !== '' ? '#111' : '#666' }}>
+                      {formData.ai_lead_score !== '' && formData.ai_lead_score !== null && formData.ai_lead_score !== undefined ? formData.ai_lead_score : '—'}
                     </div>
                     <div>
-                      <div className="text-xs font-semibold">AI Lead Score</div>
-                      <div className="text-xs text-muted">Fit & Prospect Viability Rating</div>
+                      <div className="text-xs font-semibold">
+                        {formData.ai_lead_score !== '' && formData.ai_lead_score !== null && formData.ai_lead_score !== undefined ? 'AI Lead Score' : 'Not Scored'}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {formData.ai_lead_score !== '' && formData.ai_lead_score !== null && formData.ai_lead_score !== undefined ? 'Fit & Prospect Viability Rating' : 'Pending Research Completion'}
+                      </div>
                     </div>
                   </div>
                   <div className="text-xs flex-col gap-1 mt-3" style={{ lineHeight: '1.6' }}>

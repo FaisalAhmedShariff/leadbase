@@ -331,7 +331,7 @@ export default function App() {
           status: 'cold/ Not Contacted',
           priority: 'Medium',
           lead_source: 'Manual',
-          ai_lead_score: 75,
+          ai_lead_score: null,
           research_status: 'Not Researched',
           outreach_status: 'Not Drafted',
           custom_fields: {}
@@ -542,8 +542,10 @@ export default function App() {
         aVal = weights[a.priority] || 0;
         bVal = weights[b.priority] || 0;
       } else if (sortConfig.key === 'ai_lead_score') {
-        aVal = a.ai_lead_score !== undefined ? a.ai_lead_score : 75;
-        bVal = b.ai_lead_score !== undefined ? b.ai_lead_score : 75;
+        const hasA = a.ai_lead_score !== undefined && a.ai_lead_score !== null && a.ai_lead_score !== '';
+        const hasB = b.ai_lead_score !== undefined && b.ai_lead_score !== null && b.ai_lead_score !== '';
+        aVal = hasA ? parseInt(a.ai_lead_score, 10) : -1;
+        bVal = hasB ? parseInt(b.ai_lead_score, 10) : -1;
       } else {
         aVal = a[sortConfig.key] || '';
         bVal = b[sortConfig.key] || '';

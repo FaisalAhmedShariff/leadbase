@@ -251,7 +251,8 @@ export default function LeadTable({
           ) : (
             leads.map(lead => {
               const hasDup = isDuplicateLead(lead);
-              const score = lead.ai_lead_score !== undefined && lead.ai_lead_score !== null ? lead.ai_lead_score : 75;
+              const hasScore = lead.ai_lead_score !== undefined && lead.ai_lead_score !== null && lead.ai_lead_score !== '';
+              const scoreVal = hasScore ? parseInt(lead.ai_lead_score, 10) : null;
 
               return (
                 <tr key={lead.id} style={{ backgroundColor: hasDup ? '#fffdf5' : undefined }}>
@@ -370,17 +371,23 @@ export default function LeadTable({
                   {/* AI Lead Score */}
                   <td>
                     <div className="flex items-center gap-1 font-semibold" style={{ fontSize: '0.8rem' }}>
-                      <span 
-                        className="badge" 
-                        style={{ 
-                          backgroundColor: score >= 80 ? '#f0fdf4' : score >= 60 ? '#fffbe6' : '#fef2f2',
-                          color: score >= 80 ? '#166534' : score >= 60 ? '#854d0e' : '#991b1b',
-                          borderColor: 'transparent',
-                          fontWeight: 700
-                        }}
-                      >
-                        {score}/100
-                      </span>
+                      {hasScore && !isNaN(scoreVal) ? (
+                        <span 
+                          className="badge" 
+                          style={{ 
+                            backgroundColor: scoreVal >= 80 ? '#f0fdf4' : scoreVal >= 60 ? '#fffbe6' : '#fef2f2',
+                            color: scoreVal >= 80 ? '#166534' : scoreVal >= 60 ? '#854d0e' : '#991b1b',
+                            borderColor: 'transparent',
+                            fontWeight: 700
+                          }}
+                        >
+                          {scoreVal}/100
+                        </span>
+                      ) : (
+                        <span className="badge badge-cold" style={{ color: '#999999', backgroundColor: '#f3f4f6', borderColor: 'transparent' }} title="Not scored yet">
+                          —
+                        </span>
+                      )}
                     </div>
                   </td>
 
