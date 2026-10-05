@@ -45,7 +45,11 @@ export default function Auth({ onAuthSuccess }) {
         }
       }
     } catch (err) {
-      setError(err.message || 'An error occurred during authentication.');
+      let errMsg = err.message || 'An error occurred during authentication.';
+      if (errMsg.toLowerCase().includes('fetch failed') || errMsg.toLowerCase().includes('failed to fetch')) {
+        errMsg = 'Unable to connect to Supabase authentication server. Please check your network connection and Supabase URL in .env.';
+      }
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

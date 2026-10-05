@@ -601,7 +601,11 @@ alter publication supabase_realtime add table collaborators;`}
             {error}
           </div>
         )}
-        <Auth onAuthSuccess={(sess) => setSession(sess)} />
+        <Auth onAuthSuccess={(supabaseSession) => setSession({
+          user: supabaseSession.user,
+          role: 'Owner',
+          isCollaborator: false
+        })} />
       </div>
     );
   }
