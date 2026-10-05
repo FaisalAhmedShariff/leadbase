@@ -6,10 +6,16 @@ const STANDARD_FIELDS = {
   business_name: { label: 'Business Name', defaultKeys: ['company', 'business', 'businessname', 'companyname', 'co', 'biz'] },
   phone: { label: 'Phone', defaultKeys: ['phone', 'phonenumber', 'tel', 'telephone', 'mobile'] },
   email: { label: 'Email', defaultKeys: ['email', 'emailaddress'] },
-  status: { label: 'Status', defaultKeys: ['status', 'leadstatus'] },
+  website: { label: 'Website URL', defaultKeys: ['website', 'site', 'url', 'domain', 'web'] },
+  location: { label: 'Location / City', defaultKeys: ['location', 'city', 'address', 'state', 'country'] },
+  niche: { label: 'Niche / Industry', defaultKeys: ['niche', 'industry', 'category', 'type'] },
+  status: { label: 'Pipeline Status', defaultKeys: ['status', 'leadstatus', 'pipelinestatus'] },
   priority: { label: 'Priority', defaultKeys: ['priority'] },
   lead_source: { label: 'Lead Source', defaultKeys: ['source', 'leadsource', 'channel'] },
-  meeting_date: { label: 'Meeting Date', defaultKeys: ['meeting', 'meetingdate', 'date'] },
+  ai_lead_score: { label: 'AI Lead Score (0-100)', defaultKeys: ['score', 'leadscore', 'aiscore'] },
+  research_status: { label: 'Research Status', defaultKeys: ['researchstatus', 'research'] },
+  outreach_status: { label: 'Outreach Status', defaultKeys: ['outreachstatus', 'outreach'] },
+  primary_opportunity: { label: 'Primary Opportunity', defaultKeys: ['opportunity', 'service', 'primaryopportunity'] },
   general_notes: { label: 'General Notes', defaultKeys: ['notes', 'generalnotes', 'comment', 'comments', 'desc', 'description'] },
   instagram_handle: { label: 'Instagram Handle', defaultKeys: ['instagram', 'ig', 'ighandle', 'instagramhandle', 'handle', 'username'] }
 };
@@ -109,7 +115,7 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
       }
     });
 
-    // Detect custom headers (headers that weren't mapped automatically)
+    // Detect custom headers
     const newCustomImports = [];
     headers.forEach((header, index) => {
       if (!autoMappedIndices.has(index)) {
@@ -138,14 +144,14 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
   const executeImport = () => {
     if (!csvData) return;
 
-    // Validate that Full Name is mapped
+    // Validate Full Name mapping
     const nameMapIndex = parseInt(mappings.full_name);
     if (isNaN(nameMapIndex)) {
       setError('Please map a CSV column to the "Full Name" field.');
       return;
     }
 
-    // Register new custom columns in the app
+    // Register custom columns
     customImportHeaders.forEach(headerIdx => {
       const headerName = csvData.headers[headerIdx];
       if (!customColumns.includes(headerName)) {
@@ -156,22 +162,28 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
     const parsedLeads = csvData.rows.map(row => {
       const lead = {
         full_name: row[nameMapIndex] ? row[nameMapIndex].trim() : 'Unknown Lead',
-        business_name: getMappedValue(row, mappings.business_name) || '',
-        phone: getMappedValue(row, mappings.phone) || '',
-        email: getMappedValue(row, mappings.email) || '',
+        business_name: getMappedValue(row, mappings.business_name) || '----',
+        phone: getMappedValue(row, mappings.phone) || '----',
+        email: getMappedValue(row, mappings.email) || '----',
+        website: getMappedValue(row, mappings.website) || '----',
+        location: getMappedValue(row, mappings.location) || '----',
+        niche: getMappedValue(row, mappings.niche) || '----',
         status: getCleanStatus(getMappedValue(row, mappings.status)),
         priority: getCleanPriority(getMappedValue(row, mappings.priority)),
         lead_source: getCleanSource(getMappedValue(row, mappings.lead_source)),
-        meeting_date: getCleanDate(getMappedValue(row, mappings.meeting_date)),
-        general_notes: getMappedValue(row, mappings.general_notes) || '',
+        ai_lead_score: getMappedValue(row, mappings.ai_lead_score) ? parseInt(getMappedValue(row, mappings.ai_lead_score), 10) || 75 : 75,
+        research_status: getMappedValue(row, mappings.research_status) || 'Not Researched',
+        outreach_status: getMappedValue(row, mappings.outreach_status) || 'Not Drafted',
+        primary_opportunity: getMappedValue(row, mappings.primary_opportunity) || 'Custom Interactive Website',
+        general_notes: getMappedValue(row, mappings.general_notes) || '----',
         instagram_handle: getCleanInstagramHandle(getMappedValue(row, mappings.instagram_handle)),
         custom_fields: {}
       };
 
-      // Populate custom fields
+      // Custom fields
       customImportHeaders.forEach(headerIdx => {
         const headerName = csvData.headers[headerIdx];
-        lead.custom_fields[headerName] = row[headerIdx] ? row[headerIdx].trim() : '';
+        lead.custom_fields[headerName] = row[headerIdx] ? row[headerIdx].trim() : '----';
       });
 
       return lead;
@@ -199,7 +211,6 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
     ];
     const cleaned = val.toLowerCase().trim();
     
-    // Direct matches by stripping special characters
     const match = valid.find(v => {
       const cleanV = v.toLowerCase().replace(/[^a-z0-9]/g, '');
       const cleanInput = cleaned.replace(/[^a-z0-9]/g, '');
@@ -208,14 +219,11 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
 
     if (match) return match;
 
-    // Legacy status mappings fallback
     if (cleaned.includes('cold')) return 'cold/ Not Contacted';
-    if (cleaned.includes('warm') || cleaned.includes('hot') || cleaned.includes('meeting')) return 'Warm';
-    if (cleaned.includes('proposal') || cleaned.includes('negotiat')) return 'Proposal Sent';
-    if (cleaned.includes('answer') || cleaned.includes('ghost') || cleaned.includes('no response')) return 'No Answer / Ghosted';
-    if (cleaned.includes('closed') || cleaned.includes('lost') || cleaned.includes('won') || cleaned.includes('not interested')) return 'Closed';
-    if (cleaned.includes('interested')) return 'Interested – Call Back Later';
-    if (cleaned.includes('uncertain')) return 'Uncertain – Call Back Later';
+    if (cleaned.includes('warm') || cleaned.includes('hot')) return 'Warm';
+    if (cleaned.includes('proposal')) return 'Proposal Sent';
+    if (cleaned.includes('answer') || cleaned.includes('ghost')) return 'No Answer / Ghosted';
+    if (cleaned.includes('closed')) return 'Closed';
 
     return 'cold/ Not Contacted';
   };
@@ -234,23 +242,16 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
     return match || 'Manual';
   };
 
-  const getCleanDate = (val) => {
-    if (!val) return null;
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
-  };
-
   const getCleanInstagramHandle = (val) => {
-    if (!val) return '';
+    if (!val) return '----';
     let handle = val.trim();
-    if (handle && !handle.startsWith('@')) {
+    if (handle && handle !== '----' && !handle.startsWith('@')) {
       handle = `@${handle}`;
     }
     return handle;
   };
 
   const handleExport = () => {
-    // Collect all unique custom columns across existing leads
     const allCustomCols = new Set(customColumns);
     leads.forEach(l => {
       if (l.custom_fields) {
@@ -259,35 +260,37 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
     });
     const customColList = Array.from(allCustomCols);
 
-    // Build headers
     const csvHeaders = [
-      'Full Name', 'Business Name', 'Phone', 'Email', 
-      'Status', 'Priority', 'Lead Source', 'Meeting Date', 
-      'General Notes', 'Instagram Handle',
+      'Full Name', 'Business Name', 'Phone', 'Email', 'Website', 'Location', 'Niche',
+      'Status', 'Priority', 'Lead Source', 'AI Lead Score', 'Research Status',
+      'Outreach Status', 'Primary Opportunity', 'General Notes', 'Instagram Handle',
       ...customColList
     ];
 
-    // Build rows
     const csvRows = leads.map(l => {
       const row = [
         l.full_name || '',
         l.business_name || '',
         l.phone || '',
         l.email || '',
+        l.website || '',
+        l.location || '',
+        l.niche || '',
         l.status || '',
         l.priority || '',
         l.lead_source || '',
-        l.meeting_date || '',
+        l.ai_lead_score !== undefined ? l.ai_lead_score : 75,
+        l.research_status || '',
+        l.outreach_status || '',
+        l.primary_opportunity || '',
         l.general_notes || '',
         l.instagram_handle || ''
       ];
 
-      // Append custom fields
       customColList.forEach(col => {
         row.push((l.custom_fields && l.custom_fields[col]) || '');
       });
 
-      // Escape quotes and format cells
       return row.map(cell => {
         const text = cell.toString().replace(/"/g, '""');
         return text.includes(',') || text.includes('\n') || text.includes('"') ? `"${text}"` : text;
@@ -299,7 +302,7 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `leads_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `leadbase_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -320,18 +323,18 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
         {!csvData ? (
           <div>
             <div className="mb-4 text-center">
-              <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 mb-4" style={{ height: '50px' }}>
+              <button onClick={handleExport} className="w-full flex items-center justify-center gap-2 mb-4" style={{ height: '48px' }}>
                 <Download size={16} /> Export All Leads to CSV
               </button>
             </div>
 
-            <div style={{ borderBottom: '1px solid #e5e7eb', margin: '2rem 0' }}></div>
+            <div style={{ borderBottom: '1px solid #e5e7eb', margin: '1.5rem 0' }}></div>
 
             <h4 className="manager-title">Import Leads from CSV</h4>
             <div className="csv-import-box" onClick={() => fileInputRef.current.click()}>
               <Upload size={24} style={{ margin: '0 auto 0.5rem auto', display: 'block', color: '#666' }} />
               <span className="text-sm font-semibold">Click to choose a CSV file</span>
-              <p className="text-xs text-muted mt-4">We will auto-map common headers like Name, Phone, Email, etc.</p>
+              <p className="text-xs text-muted mt-2">Auto-maps Name, Phone, Email, Website, Location, Status, Score, etc.</p>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -351,7 +354,7 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
           <div>
             <h4 className="manager-title">Verify Column Mappings</h4>
             <p className="text-xs text-muted mb-4">
-              Map the columns of your CSV file to the corresponding CRM fields. We automatically matched headers where possible.
+              Map the columns of your CSV file to Leadbase fields.
             </p>
 
             <div className="csv-mapping-container">
@@ -376,14 +379,9 @@ export default function CsvImportExport({ leads = [], onImportComplete, onClose,
 
             <div style={{ borderBottom: '1px solid #e5e7eb', margin: '1.5rem 0' }}></div>
 
-            <h4 className="manager-title">Extra Columns (Rows Mapping)</h4>
-            <p className="text-xs text-muted mb-4">
-              The following columns do not match standard fields. Select the ones you want to import as extra columns. They will be stored in your leads' profiles dynamically.
-            </p>
-
+            <h4 className="manager-title">Extra Custom Columns</h4>
             <div className="column-chips" style={{ minHeight: '40px' }}>
               {csvData.headers.map((header, idx) => {
-                // If it is NOT mapped in mappings
                 const isMappedToStandard = Object.values(mappings).includes(idx.toString());
                 if (isMappedToStandard) return null;
 

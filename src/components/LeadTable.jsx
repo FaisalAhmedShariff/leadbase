@@ -1,24 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowUp, ArrowDown, ArrowUpDown, Edit2, Trash2 } from 'lucide-react';
-
-const Instagram = ({ size = 12, ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-  </svg>
-);
+import { 
+  ArrowUpDown, 
+  ArrowUp, 
+  ArrowDown, 
+  Trash2, 
+  Edit2, 
+  Eye, 
+  ExternalLink, 
+  AlertTriangle, 
+  Globe, 
+  Sparkles 
+} from 'lucide-react';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '----';
@@ -40,8 +32,9 @@ const PIPELINE_STATUSES = [
 ];
 
 export default function LeadTable({
-  leads,
-  customColumns,
+  leads = [],
+  allLeads = [],
+  customColumns = [],
   sortConfig,
   onRequestSort,
   onUpdateLead,
@@ -50,20 +43,19 @@ export default function LeadTable({
   onTriggerCallbackPrompt,
   readOnly = false
 }) {
-  const [activeDropdown, setActiveDropdown] = useState(null); // leadId
-  const [editingCell, setEditingCell] = useState(null); // { leadId, field }
+  const [editingCell, setEditingCell] = useState(null); // { leadId, field, isCustom }
   const [editValue, setEditValue] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState(null); // leadId
   const dropdownRef = useRef(null);
 
-  // Close status dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event) {
+    const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setActiveDropdown(null);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const getStatusClass = (status) => {
@@ -83,19 +75,55 @@ export default function LeadTable({
     }
   };
 
-  const getPriorityDotClass = (priority) => {
-    switch (priority) {
-      case 'High': return 'priority-high';
-      case 'Medium': return 'priority-medium';
-      case 'Low': return 'priority-low';
-      default: return '';
+  const getResearchBadgeClass = (resStatus) => {
+    switch (resStatus) {
+      case 'Research Complete':
+        return 'badge-meeting';
+      case 'Researching':
+      case 'Research Queued':
+        return 'badge-warm';
+      case 'Research Failed':
+        return 'badge-closed-lost';
+      default:
+        return 'badge-cold';
     }
   };
 
-  const handleCellClick = (leadId, field, currentValue) => {
+  const getOutreachBadgeClass = (outStatus) => {
+    switch (outStatus) {
+      case 'Approved':
+      case 'Sent':
+      case 'Converted':
+        return 'badge-meeting';
+      case 'Draft Ready':
+      case 'Needs Review':
+      case 'Follow-up':
+      case 'Replied':
+        return 'badge-warm';
+      case 'Not Interested':
+        return 'badge-closed-lost';
+      default:
+        return 'badge-cold';
+    }
+  };
+
+  const getPriorityDotClass = (priority) => {
+    switch (priority) {
+      case 'High':
+        return 'priority-high';
+      case 'Medium':
+        return 'priority-medium';
+      case 'Low':
+        return 'priority-low';
+      default:
+        return 'priority-medium';
+    }
+  };
+
+  const handleCellClick = (leadId, field, currentValue, isCustom = false) => {
     if (readOnly) return;
-    setEditingCell({ leadId, field });
-    setEditValue(currentValue || '');
+    setEditingCell({ leadId, field, isCustom });
+    setEditValue(currentValue && currentValue !== '----' ? currentValue : '');
   };
 
   const handleCellSave = (lead, field, isCustom = false) => {
@@ -113,10 +141,10 @@ export default function LeadTable({
       let updatedLead = {};
       if (isCustom) {
         const updatedCustomFields = { ...(lead.custom_fields || {}) };
-        updatedCustomFields[field] = editValue.trim();
+        updatedCustomFields[field] = editValue.trim() !== '' ? editValue.trim() : '----';
         updatedLead = { custom_fields: updatedCustomFields };
       } else {
-        updatedLead = { [field]: editValue.trim() };
+        updatedLead = { [field]: editValue.trim() !== '' ? editValue.trim() : '----' };
       }
       onUpdateLead(lead.id, updatedLead);
     }
@@ -150,6 +178,20 @@ export default function LeadTable({
     setActiveDropdown(null);
   };
 
+  // Helper to check for duplicate lead
+  const isDuplicateLead = (targetLead) => {
+    const list = allLeads.length > 0 ? allLeads : leads;
+    return list.some(l => {
+      if (l.id === targetLead.id) return false;
+      const matchPhone = targetLead.phone && targetLead.phone !== '----' && l.phone && l.phone !== '----' && l.phone.trim() === targetLead.phone.trim();
+      const matchWebsite = targetLead.website && targetLead.website !== '----' && l.website && l.website !== '----' && l.website.toLowerCase().trim() === targetLead.website.toLowerCase().trim();
+      const matchBizLoc = targetLead.business_name && targetLead.location && l.business_name && l.location &&
+        l.business_name.toLowerCase().trim() === targetLead.business_name.toLowerCase().trim() &&
+        l.location.toLowerCase().trim() === targetLead.location.toLowerCase().trim();
+      return matchPhone || matchWebsite || matchBizLoc;
+    });
+  };
+
   return (
     <div className="table-container">
       <table>
@@ -164,8 +206,14 @@ export default function LeadTable({
             <th onClick={() => onRequestSort('phone')}>
               <div className="th-content">Phone {renderSortIcon('phone')}</div>
             </th>
-            <th onClick={() => onRequestSort('email')}>
-              <div className="th-content">Email {renderSortIcon('email')}</div>
+            <th onClick={() => onRequestSort('website')}>
+              <div className="th-content">Website {renderSortIcon('website')}</div>
+            </th>
+            <th onClick={() => onRequestSort('location')}>
+              <div className="th-content">Location {renderSortIcon('location')}</div>
+            </th>
+            <th onClick={() => onRequestSort('ai_lead_score')}>
+              <div className="th-content">Score {renderSortIcon('ai_lead_score')}</div>
             </th>
             <th onClick={() => onRequestSort('status')}>
               <div className="th-content">Status {renderSortIcon('status')}</div>
@@ -176,302 +224,280 @@ export default function LeadTable({
             <th onClick={() => onRequestSort('lead_source')}>
               <div className="th-content">Source {renderSortIcon('lead_source')}</div>
             </th>
-            <th onClick={() => onRequestSort('meeting_date')}>
-              <div className="th-content">Meeting Date {renderSortIcon('meeting_date')}</div>
+            <th onClick={() => onRequestSort('research_status')}>
+              <div className="th-content">Research {renderSortIcon('research_status')}</div>
             </th>
-            <th onClick={() => onRequestSort('last_contacted_date')}>
-              <div className="th-content">Last Contact {renderSortIcon('last_contacted_date')}</div>
-            </th>
-            <th onClick={() => onRequestSort('instagram_handle')}>
-              <div className="th-content">IG Handle {renderSortIcon('instagram_handle')}</div>
-            </th>
-            <th onClick={() => onRequestSort('general_notes')}>
-              <div className="th-content">General Notes {renderSortIcon('general_notes')}</div>
+            <th onClick={() => onRequestSort('outreach_status')}>
+              <div className="th-content">Outreach {renderSortIcon('outreach_status')}</div>
             </th>
 
+            {/* Custom columns */}
             {customColumns.map(col => (
               <th key={col} onClick={() => onRequestSort(`custom_fields.${col}`)}>
                 <div className="th-content">{col} {renderSortIcon(`custom_fields.${col}`)}</div>
               </th>
             ))}
 
-            {!readOnly && <th className="actions-column">Actions</th>}
+            <th className="actions-column">Actions</th>
           </tr>
         </thead>
         <tbody>
           {leads.length === 0 ? (
             <tr>
-              <td colSpan={readOnly ? (11 + customColumns.length) : (12 + customColumns.length)} className="text-center text-muted" style={{ padding: '3rem 1rem' }}>
+              <td colSpan={12 + customColumns.length} className="text-center text-muted" style={{ padding: '3rem 1rem' }}>
                 {readOnly ? 'No leads found.' : 'No leads found. Click "Add Lead", use CSV Import, or click "Quick Add Row" to begin.'}
               </td>
             </tr>
           ) : (
-            leads.map(lead => (
-              <tr key={lead.id}>
-                {/* Full Name */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'full_name' ? (
-                    <input
-                      className="cell-input"
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'full_name')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'full_name')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'full_name', lead.full_name)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.full_name || (readOnly ? '----' : <span style={{ color: '#ccc' }}>New Lead</span>)}
-                    </span>
-                  )}
-                </td>
+            leads.map(lead => {
+              const hasDup = isDuplicateLead(lead);
+              const score = lead.ai_lead_score !== undefined && lead.ai_lead_score !== null ? lead.ai_lead_score : 75;
 
-                {/* Business Name */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'business_name' ? (
-                    <input
-                      className="cell-input"
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'business_name')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'business_name')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'business_name', lead.business_name)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.business_name || '----'}
-                    </span>
-                  )}
-                </td>
-
-                {/* Phone */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'phone' ? (
-                    <input
-                      className="cell-input"
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'phone')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'phone')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'phone', lead.phone)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.phone || '----'}
-                    </span>
-                  )}
-                </td>
-
-                {/* Email */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'email' ? (
-                    <input
-                      className="cell-input"
-                      type="email"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'email')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'email')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'email', lead.email)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.email || '----'}
-                    </span>
-                  )}
-                </td>
-
-                {/* Status Inline Click Dropdown */}
-                <td className="status-cell">
-                  <div
-                    className={`badge ${getStatusClass(lead.status)} ${readOnly ? '' : 'status-trigger'}`}
-                    onClick={() => {
-                      if (readOnly) return;
-                      setActiveDropdown(activeDropdown === lead.id ? null : lead.id);
-                    }}
-                  >
-                    {lead.status}
-                  </div>
-                  {activeDropdown === lead.id && !readOnly && (
-                    <div className="status-dropdown" ref={dropdownRef} style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      {PIPELINE_STATUSES.map(st => (
-                        <div
-                          key={st}
-                          className="status-dropdown-item"
-                          onClick={() => handleStatusChange(lead.id, st)}
-                        >
-                          {st}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </td>
-
-                {/* Priority Selector */}
-                <td>
-                  <div className="priority-container">
-                    <span className={`priority-dot ${getPriorityDotClass(lead.priority)}`}></span>
-                    <select
-                      value={lead.priority}
-                      onChange={(e) => onUpdateLead(lead.id, { priority: e.target.value })}
-                      disabled={readOnly}
-                      style={{ border: 'none', background: 'none', padding: 0, width: 'auto', cursor: readOnly ? 'default' : 'pointer', fontWeight: 500 }}
-                    >
-                      <option value="High">High</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Low">Low</option>
-                    </select>
-                  </div>
-                </td>
-
-                {/* Lead Source */}
-                <td>
-                  <select
-                    value={lead.lead_source}
-                    onChange={(e) => onUpdateLead(lead.id, { lead_source: e.target.value })}
-                    disabled={readOnly}
-                    style={{ border: 'none', background: 'none', padding: 0, width: 'auto', cursor: readOnly ? 'default' : 'pointer' }}
-                  >
-                    {['Manual', 'PhantomBuster', 'Google Sheets', 'Referral', 'Website', 'LinkedIn', 'Instagram', 'Other'].map(src => (
-                      <option key={src} value={src}>{src}</option>
-                    ))}
-                  </select>
-                </td>
-
-                {/* Meeting Date */}
-                <td>
-                  <input
-                    type="date"
-                    value={lead.meeting_date || ''}
-                    onChange={(e) => onUpdateLead(lead.id, { meeting_date: e.target.value || null })}
-                    disabled={readOnly || lead.status !== 'Meeting Booked'}
-                    style={{ 
-                      border: 'none', 
-                      background: 'none', 
-                      padding: 0, 
-                      width: 'auto', 
-                      cursor: (readOnly || lead.status !== 'Meeting Booked') ? 'default' : 'pointer',
-                      color: lead.status !== 'Meeting Booked' ? '#999999' : '#111111'
-                    }}
-                  />
-                </td>
-
-                {/* Last Contact */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'last_contacted_date' ? (
-                    <input
-                      className="cell-input"
-                      type="date"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'last_contacted_date')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'last_contacted_date')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'last_contacted_date', lead.last_contacted_date)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {formatDate(lead.last_contacted_date)}
-                    </span>
-                  )}
-                </td>
-
-                {/* Instagram Handle Badge */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'instagram_handle' ? (
-                    <input
-                      className="cell-input"
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => {
-                        let val = editValue.trim();
-                        if (val && !val.startsWith('@')) val = `@${val}`;
-                        onUpdateLead(lead.id, { instagram_handle: val });
-                        setEditingCell(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          let val = editValue.trim();
-                          if (val && !val.startsWith('@')) val = `@${val}`;
-                          onUpdateLead(lead.id, { instagram_handle: val });
-                          setEditingCell(null);
-                        } else if (e.key === 'Escape') {
-                          setEditingCell(null);
-                        }
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'instagram_handle', lead.instagram_handle)} style={{ display: 'block', minHeight: '1.2rem' }}>
-                      {lead.instagram_handle ? (
-                        <span className="instagram-badge">
-                          <Instagram size={12} /> {lead.instagram_handle}
-                        </span>
-                      ) : (
-                        readOnly ? '----' : <span style={{ color: '#ccc', fontSize: '0.75rem' }}>+ Add IG</span>
-                      )}
-                    </span>
-                  )}
-                </td>
-
-                {/* General Notes */}
-                <td className="cell-editable">
-                  {editingCell && editingCell.leadId === lead.id && editingCell.field === 'general_notes' ? (
-                    <input
-                      className="cell-input"
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleCellSave(lead, 'general_notes')}
-                      onKeyDown={(e) => handleCellKeyDown(e, lead, 'general_notes')}
-                      autoFocus
-                    />
-                  ) : (
-                    <span onClick={() => handleCellClick(lead.id, 'general_notes', lead.general_notes)} style={{ display: 'block', minHeight: '1.2rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {lead.general_notes || '----'}
-                    </span>
-                  )}
-                </td>
-
-                {/* Custom fields cells */}
-                {customColumns.map(col => (
-                  <td key={col} className="cell-editable">
-                    {editingCell && editingCell.leadId === lead.id && editingCell.field === col ? (
+              return (
+                <tr key={lead.id} style={{ backgroundColor: hasDup ? '#fffdf5' : undefined }}>
+                  
+                  {/* Full Name */}
+                  <td className="cell-editable">
+                    {editingCell && editingCell.leadId === lead.id && editingCell.field === 'full_name' ? (
                       <input
                         className="cell-input"
                         type="text"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={() => handleCellSave(lead, col, true)}
-                        onKeyDown={(e) => handleCellKeyDown(e, lead, col, true)}
+                        onBlur={() => handleCellSave(lead, 'full_name')}
+                        onKeyDown={(e) => handleCellKeyDown(e, lead, 'full_name')}
                         autoFocus
                       />
                     ) : (
-                      <span onClick={() => handleCellClick(lead.id, col, lead.custom_fields && lead.custom_fields[col])} style={{ display: 'block', minHeight: '1.2rem' }}>
-                        {(lead.custom_fields && lead.custom_fields[col]) || '----'}
+                      <div onClick={() => handleCellClick(lead.id, 'full_name', lead.full_name)} style={{ minHeight: '1.2rem', cursor: readOnly ? 'default' : 'pointer' }}>
+                        <span style={{ fontWeight: 600 }}>{lead.full_name || (readOnly ? '----' : <span style={{ color: '#ccc' }}>New Lead</span>)}</span>
+                        {hasDup && (
+                          <span title="Possible duplicate lead detected" style={{ marginLeft: '4px', color: '#d97706', display: 'inline-flex', verticalAlign: 'middle' }}>
+                            <AlertTriangle size={12} />
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Business Name */}
+                  <td className="cell-editable">
+                    {editingCell && editingCell.leadId === lead.id && editingCell.field === 'business_name' ? (
+                      <input
+                        className="cell-input"
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => handleCellSave(lead, 'business_name')}
+                        onKeyDown={(e) => handleCellKeyDown(e, lead, 'business_name')}
+                        autoFocus
+                      />
+                    ) : (
+                      <span onClick={() => handleCellClick(lead.id, 'business_name', lead.business_name)} style={{ display: 'block', minHeight: '1.2rem' }}>
+                        {lead.business_name || '----'}
                       </span>
                     )}
                   </td>
-                ))}
 
-                {/* Row Actions */}
-                {!readOnly && (
+                  {/* Phone */}
+                  <td className="cell-editable">
+                    {editingCell && editingCell.leadId === lead.id && editingCell.field === 'phone' ? (
+                      <input
+                        className="cell-input"
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => handleCellSave(lead, 'phone')}
+                        onKeyDown={(e) => handleCellKeyDown(e, lead, 'phone')}
+                        autoFocus
+                      />
+                    ) : (
+                      <span onClick={() => handleCellClick(lead.id, 'phone', lead.phone)} style={{ display: 'block', minHeight: '1.2rem' }}>
+                        {lead.phone || '----'}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Website */}
+                  <td className="cell-editable">
+                    {editingCell && editingCell.leadId === lead.id && editingCell.field === 'website' ? (
+                      <input
+                        className="cell-input"
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => handleCellSave(lead, 'website')}
+                        onKeyDown={(e) => handleCellKeyDown(e, lead, 'website')}
+                        autoFocus
+                      />
+                    ) : (
+                      <span onClick={() => handleCellClick(lead.id, 'website', lead.website)} style={{ display: 'block', minHeight: '1.2rem' }}>
+                        {lead.website && lead.website !== '----' ? (
+                          <a 
+                            href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted font-semibold underline"
+                            style={{ fontSize: '0.8rem' }}
+                          >
+                            {lead.website.replace(/^https?:\/\//i, '').replace(/\/$/, '')} <ExternalLink size={10} style={{ display: 'inline' }} />
+                          </a>
+                        ) : '----'}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Location */}
+                  <td className="cell-editable">
+                    {editingCell && editingCell.leadId === lead.id && editingCell.field === 'location' ? (
+                      <input
+                        className="cell-input"
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => handleCellSave(lead, 'location')}
+                        onKeyDown={(e) => handleCellKeyDown(e, lead, 'location')}
+                        autoFocus
+                      />
+                    ) : (
+                      <span onClick={() => handleCellClick(lead.id, 'location', lead.location)} style={{ display: 'block', minHeight: '1.2rem' }}>
+                        {lead.location || '----'}
+                      </span>
+                    )}
+                  </td>
+
+                  {/* AI Lead Score */}
                   <td>
-                    <div className="row-actions">
-                      <button onClick={() => onEditClick(lead)} title="Edit Details">
-                        <Edit2 size={12} />
-                      </button>
-                      <button className="danger" onClick={() => onDeleteLead(lead.id)} title="Delete Lead">
-                        <Trash2 size={12} />
-                      </button>
+                    <div className="flex items-center gap-1 font-semibold" style={{ fontSize: '0.8rem' }}>
+                      <span 
+                        className="badge" 
+                        style={{ 
+                          backgroundColor: score >= 80 ? '#f0fdf4' : score >= 60 ? '#fffbe6' : '#fef2f2',
+                          color: score >= 80 ? '#166534' : score >= 60 ? '#854d0e' : '#991b1b',
+                          borderColor: 'transparent',
+                          fontWeight: 700
+                        }}
+                      >
+                        {score}/100
+                      </span>
                     </div>
                   </td>
-                )}
-              </tr>
-            ))
+
+                  {/* Status Inline Click Dropdown */}
+                  <td className="status-cell">
+                    <div
+                      className={`badge ${getStatusClass(lead.status)} ${readOnly ? '' : 'status-trigger'}`}
+                      onClick={() => {
+                        if (readOnly) return;
+                        setActiveDropdown(activeDropdown === lead.id ? null : lead.id);
+                      }}
+                    >
+                      {lead.status}
+                    </div>
+                    {activeDropdown === lead.id && !readOnly && (
+                      <div className="status-dropdown" ref={dropdownRef} style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {PIPELINE_STATUSES.map(st => (
+                          <div
+                            key={st}
+                            className="status-dropdown-item"
+                            onClick={() => handleStatusChange(lead.id, st)}
+                          >
+                            {st}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Priority Selector */}
+                  <td>
+                    <div className="priority-container">
+                      <span className={`priority-dot ${getPriorityDotClass(lead.priority)}`}></span>
+                      <select
+                        value={lead.priority}
+                        onChange={(e) => onUpdateLead(lead.id, { priority: e.target.value })}
+                        disabled={readOnly}
+                        style={{ border: 'none', background: 'none', padding: 0, width: 'auto', cursor: readOnly ? 'default' : 'pointer', fontWeight: 500 }}
+                      >
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    </div>
+                  </td>
+
+                  {/* Lead Source */}
+                  <td>
+                    <select
+                      value={lead.lead_source}
+                      onChange={(e) => onUpdateLead(lead.id, { lead_source: e.target.value })}
+                      disabled={readOnly}
+                      style={{ border: 'none', background: 'none', padding: 0, width: 'auto', cursor: readOnly ? 'default' : 'pointer' }}
+                    >
+                      {['Manual', 'PhantomBuster', 'Google Sheets', 'Referral', 'Website', 'LinkedIn', 'Instagram', 'Other'].map(src => (
+                        <option key={src} value={src}>{src}</option>
+                      ))}
+                    </select>
+                  </td>
+
+                  {/* Research Status */}
+                  <td>
+                    <span className={`badge ${getResearchBadgeClass(lead.research_status || 'Not Researched')}`}>
+                      {lead.research_status || 'Not Researched'}
+                    </span>
+                  </td>
+
+                  {/* Outreach Status */}
+                  <td>
+                    <span className={`badge ${getOutreachBadgeClass(lead.outreach_status || 'Not Drafted')}`}>
+                      {lead.outreach_status || 'Not Drafted'}
+                    </span>
+                  </td>
+
+                  {/* Custom Columns */}
+                  {customColumns.map(col => {
+                    const val = (lead.custom_fields && lead.custom_fields[col]) || '';
+                    return (
+                      <td key={col} className="cell-editable">
+                        {editingCell && editingCell.leadId === lead.id && editingCell.field === col && editingCell.isCustom ? (
+                          <input
+                            className="cell-input"
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleCellSave(lead, col, true)}
+                            onKeyDown={(e) => handleCellKeyDown(e, lead, col, true)}
+                            autoFocus
+                          />
+                        ) : (
+                          <span onClick={() => handleCellClick(lead.id, col, val, true)} style={{ display: 'block', minHeight: '1.2rem' }}>
+                            {val || '----'}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+
+                  {/* Row Actions */}
+                  <td className="actions-column">
+                    <div className="row-actions">
+                      <button 
+                        onClick={() => onEditClick(lead)} 
+                        title={readOnly ? 'View Lead Details' : 'View & Edit Lead Details'}
+                      >
+                        {readOnly ? <Eye size={13} /> : <Edit2 size={13} />}
+                      </button>
+                      {!readOnly && (
+                        <button onClick={() => onDeleteLead(lead.id)} className="danger" title="Delete lead">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
